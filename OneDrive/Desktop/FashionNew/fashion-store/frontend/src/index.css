@@ -1,0 +1,28 @@
+/* stylelint-disable at-rule-no-unknown */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Playfair+Display:wght@400;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #0f1724; }
+h1,h2,h3,h4 { font-family: 'Playfair Display', serif; }
+a { color: inherit; text-decoration: none; }
+ul { padding: 0; margin: 0; list-style: none; }
+header, footer { background: #fff; color: inherit; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+.grid { display: grid; gap: 16px; }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.btn { padding: 8px 12px; border: 1px solid #e5e7eb; background:#fff; cursor: pointer; border-radius: 8px; }
+.btn.primary { background:linear-gradient(90deg,#ff4d86,#e6396a); color:#fff; border-color:transparent; }
+.badge { background:#ffad2e; color:#fff; padding: 4px 8px; border-radius: 9999px; font-size: 12px; }
+
+/* utility overrides for consistent theme */
+.text-primary { color: #ff4d86; }
+.bg-primary { background-color: #ff4d86; }
+.ring-primary { box-shadow: 0 0 0 4px rgba(255,77,134,0.12); }
+
+/* subtle card style used across the project */
+.card { background: #fff; border: 1px solid rgba(15,23,36,0.04); border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,36,0.04); }
+
+
