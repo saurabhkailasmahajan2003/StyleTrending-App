@@ -20,6 +20,8 @@ import CartScreen from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoryScreen from '../screens/CategoryScreen';
+import SaleScreen from '../screens/SaleScreen';
+import FreshDropsScreen from '../screens/FreshDropsScreen';
 import SearchScreen from '../screens/SearchScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderSuccessScreen from '../screens/OrderSuccessScreen';
@@ -52,6 +54,16 @@ function MainStack() {
       <Stack.Screen 
         name="Category" 
         component={CategoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Sale" 
+        component={SaleScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="FreshDrops" 
+        component={FreshDropsScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen 

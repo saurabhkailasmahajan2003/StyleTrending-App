@@ -18,7 +18,7 @@ const getEnvVars = () => {
   // If not set, use hosted backend as default
   if (!apiBaseUrl) {
     // Use hosted backend by default
-    apiBaseUrl = 'https://astra-fashion-backend.onrender.com/api';
+    apiBaseUrl = 'https://api.styletrending.in/api';
     console.log('ℹ️ Using default hosted backend:', apiBaseUrl);
   }
 

@@ -374,11 +374,11 @@ const CheckoutScreen = () => {
                         processingStep >= step && styles.stepTextActive,
                       ]}
                     >
-                      {step === 1 && 'Validating order'}
-                      {step === 2 && 'Processing payment'}
-                      {step === 3 && 'Confirming order'}
-                      {step === 4 && 'Creating order'}
-                      {step === 5 && 'Order confirmed'}
+                      {step === 1 ? 'Validating order' : 
+                       step === 2 ? 'Processing payment' : 
+                       step === 3 ? 'Confirming order' : 
+                       step === 4 ? 'Creating order' : 
+                       step === 5 ? 'Order confirmed' : ''}
                     </Text>
                   </View>
                 ))}

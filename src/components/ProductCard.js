@@ -18,6 +18,11 @@ const ProductCard = ({ product }) => {
   const [showSizes, setShowSizes] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // Safety check - return null if product is invalid
+  if (!product || typeof product !== 'object') {
+    return null;
+  }
+
   // Data Normalization - Same as web
   let productImages = [];
   if (product.images) {
@@ -192,25 +197,28 @@ const ProductCard = ({ product }) => {
                     </TouchableOpacity>
                   </View>
                   <View className="flex-row flex-wrap gap-1">
-                    {sizes.slice(0, 4).map((size) => (
-                      <TouchableOpacity
-                        key={size}
-                        onPress={() => handleAddToCart(size)}
-                        disabled={isAdding}
-                        className={`flex-1 min-w-[20%] h-7 border rounded justify-center items-center ${
-                          isAdding 
-                            ? 'bg-gray-50 border-gray-200' 
-                            : 'bg-white border-gray-300'
-                        }`}
-                        activeOpacity={0.7}
-                      >
-                        <Text className={`text-[10px] font-bold ${
-                          isAdding ? 'text-gray-300' : 'text-gray-900'
-                        }`}>
-                          {size}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {sizes.slice(0, 4).map((size) => {
+                      const sizeStr = String(size || '');
+                      return (
+                        <TouchableOpacity
+                          key={sizeStr}
+                          onPress={() => handleAddToCart(size)}
+                          disabled={isAdding}
+                          className={`flex-1 min-w-[20%] h-7 border rounded justify-center items-center ${
+                            isAdding 
+                              ? 'bg-gray-50 border-gray-200' 
+                              : 'bg-white border-gray-300'
+                          }`}
+                          activeOpacity={0.7}
+                        >
+                          <Text className={`text-[10px] font-bold ${
+                            isAdding ? 'text-gray-300' : 'text-gray-900'
+                          }`}>
+                            {sizeStr}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
               )}

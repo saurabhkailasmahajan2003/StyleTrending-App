@@ -3,7 +3,7 @@
  * Converted from web CategoryPage.jsx
  * Features: FlatList, Infinite Scroll, Same API calls, Performance optimized
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +24,59 @@ import ProductCard from '../components/ProductCard';
 import BottomNavBar from '../components/BottomNavBar';
 
 const ITEMS_PER_PAGE = 20; // Items to load per infinite scroll batch
+
+// Categories data (same as DrawerContent)
+const categories = [
+  { 
+    id: 'men', 
+    label: 'Men', 
+    subItems: [
+      { name: 'Shirts', path: 'shirt' },
+      { name: 'T-Shirts', path: 'tshirt' },
+      { name: 'Jeans', path: 'jeans' },
+      { name: 'Trousers', path: 'trousers' },
+      { name: 'Shoes', path: 'shoes' }
+    ] 
+  },
+  { 
+    id: 'women', 
+    label: 'Women', 
+    subItems: [
+      { name: 'Shirts', path: 'shirt' },
+      { name: 'T-Shirts', path: 'tshirt' },
+      { name: 'Jeans', path: 'jeans' },
+      { name: 'Trousers', path: 'trousers' },
+      { name: 'Saree', path: 'saree' }
+    ] 
+  },
+  { 
+    id: 'watches', 
+    label: 'Watches', 
+    subItems: [
+      { name: "Men's Watches", path: 'watches', params: { gender: 'men' } },
+      { name: "Women's Watches", path: 'watches', params: { gender: 'women' } },
+      { name: 'Smart Watches', path: 'watches', params: { type: 'smart' } }
+    ] 
+  },
+  { 
+    id: 'eyewear', 
+    label: 'Eyewear', 
+    subItems: [
+      { name: "Men's Eyewear", path: 'lenses', params: { gender: 'men' } },
+      { name: "Women's Eyewear", path: 'lenses', params: { gender: 'women' } },
+      { name: 'Sunglasses', path: 'lenses', params: { type: 'sun' } }
+    ] 
+  },
+  { 
+    id: 'accessories', 
+    label: 'Accessories', 
+    subItems: [
+      { name: "Men's Accessories", path: 'accessories', params: { gender: 'men' } },
+      { name: "Women's Accessories", path: 'accessories', params: { gender: 'women' } },
+      { name: 'Wallets & Belts', path: 'accessories', params: { type: 'general' } }
+    ] 
+  }
+];
 
 const CategoryScreen = () => {
   const route = useRoute();
@@ -49,6 +104,17 @@ const CategoryScreen = () => {
     sortBy: null,
   });
   const [showFilters, setShowFilters] = useState(false);
+  
+  // State for category dropdown
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  const [categoryLayouts, setCategoryLayouts] = useState({});
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const isAnimating = useRef(false);
+  
+  // Animation values for dropdown
+  const dropdownOpacity = useRef(new Animated.Value(0)).current;
+  const dropdownScale = useRef(new Animated.Value(0.95)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   // Determine category type from route
   const categoryType = category || 'all';
@@ -67,7 +133,8 @@ const CategoryScreen = () => {
         const params = { ...(activeGender ? { gender: activeGender } : {}), limit: fetchLimit };
         response = await productAPI.getWatches(params);
         setPageTitle(activeGender ? `${activeGender.charAt(0).toUpperCase() + activeGender.slice(1)}'s Watches` : 'Watches');
-      } else if (categoryType === 'lenses') {
+      } else if (categoryType === 'lenses' || categoryType === 'eyewear') {
+        // Handle both 'lenses' and 'eyewear' category types
         const params = { ...(activeGender ? { gender: activeGender } : {}), limit: fetchLimit };
         response = await productAPI.getLenses(params);
         setPageTitle(activeGender ? `${activeGender.charAt(0).toUpperCase() + activeGender.slice(1)}'s Lenses` : 'Lenses & Spectacles');
@@ -84,10 +151,14 @@ const CategoryScreen = () => {
       } else if (activeGender && activeCategory) {
         const categoryMap = {
           'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
+          'shirts': { subCategory: 'shirt', displayName: 'Shirt' },
           'tshirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
           't-shirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+          'tshirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+          't-shirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
           'jeans': { subCategory: 'jeans', displayName: 'Jeans' },
           'trousers': { subCategory: 'trousers', displayName: 'Trousers' },
+          'trouser': { subCategory: 'trousers', displayName: 'Trousers' },
           'shoes': { subCategory: 'shoes', displayName: 'Shoes' },
           'shoe': { subCategory: 'shoes', displayName: 'Shoes' },
           'saree': { subCategory: 'saree', displayName: 'Saree' },
@@ -99,15 +170,17 @@ const CategoryScreen = () => {
         
         if (categoryInfo) {
           const fetcher = activeGender === 'women' ? productAPI.getWomenItems : productAPI.getMenItems;
-          response = await fetcher({ subCategory: categoryInfo.subCategory, limit: fetchLimit });
+          // Use 'category' parameter (as used in HomeScreen) instead of 'subCategory'
+          response = await fetcher({ category: categoryInfo.subCategory, limit: fetchLimit });
           
           if (response && response.success && response.data.products) {
+            // Additional filtering to ensure we only get the correct subcategory
             const filteredProducts = response.data.products.filter(product => {
-              const productSubCategory = (product.subCategory || '').toLowerCase().trim().replace(/-/g, '');
+              const productSubCategory = (product.subCategory || product.category || '').toLowerCase().trim().replace(/-/g, '');
               const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
-              return productSubCategory === expectedSubCategory;
+              return productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
             });
-            response.data.products = filteredProducts;
+            response.data.products = filteredProducts.length > 0 ? filteredProducts : response.data.products;
           }
           
           const genderDisplay = activeGender.charAt(0).toUpperCase() + activeGender.slice(1);
@@ -148,6 +221,8 @@ const CategoryScreen = () => {
     });
     setDisplayedProducts([]);
     setHasMore(true);
+    // Close dropdown when category changes
+    setExpandedCategory(null);
   }, [categoryType, activeGender, activeCategory]);
 
   // 2. Filter Logic (Preserved from web)
@@ -158,10 +233,14 @@ const CategoryScreen = () => {
     if (activeGender && activeCategory) {
       const categoryMap = {
         'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
+        'shirts': { subCategory: 'shirt', displayName: 'Shirt' },
         'tshirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
         't-shirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+        'tshirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+        't-shirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
         'jeans': { subCategory: 'jeans', displayName: 'Jeans' },
         'trousers': { subCategory: 'trousers', displayName: 'Trousers' },
+        'trouser': { subCategory: 'trousers', displayName: 'Trousers' },
         'shoes': { subCategory: 'shoes', displayName: 'Shoes' },
         'shoe': { subCategory: 'shoes', displayName: 'Shoes' },
         'saree': { subCategory: 'saree', displayName: 'Saree' },
@@ -340,13 +419,121 @@ const CategoryScreen = () => {
     return (
       <View className="py-15 items-center">
         <Text className="text-base text-gray-500 mb-4">No products found</Text>
-        {(filters.priceRange || filters.brands?.length > 0 || filters.sizes?.length > 0) && (
+        {(filters.priceRange || filters.brands?.length > 0 || filters.sizes?.length > 0) ? (
           <TouchableOpacity onPress={handleClearFilters} className="px-5 py-2.5 bg-gray-900 rounded-lg">
             <Text className="text-white text-sm font-semibold">Clear filters</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
     );
+  };
+
+  // Animate dropdown when opening/closing
+  useEffect(() => {
+    // Stop any ongoing animations
+    dropdownOpacity.stopAnimation();
+    dropdownScale.stopAnimation();
+    overlayOpacity.stopAnimation();
+    
+    if (expandedCategory) {
+      // Opening: Set visible first, reset animation values, then animate
+      isAnimating.current = true;
+      setIsDropdownVisible(true);
+      
+      // Reset animation values to starting position
+      dropdownOpacity.setValue(0);
+      dropdownScale.setValue(0.95);
+      overlayOpacity.setValue(0);
+      
+      // Small delay to ensure render, then animate
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(dropdownOpacity, {
+            toValue: 1,
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.spring(dropdownScale, {
+            toValue: 1,
+            tension: 68,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          isAnimating.current = false;
+        });
+      });
+    } else if (isDropdownVisible) {
+      // Closing: Animate out first, then hide
+      isAnimating.current = true;
+      Animated.parallel([
+        Animated.timing(dropdownOpacity, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(dropdownScale, {
+          toValue: 0.95,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Hide dropdown after animation completes
+        setIsDropdownVisible(false);
+        isAnimating.current = false;
+      });
+    }
+  }, [expandedCategory]);
+
+  // Handle category navigation
+  const handleCategoryPress = (cat) => {
+    // Prevent interaction while animating
+    if (isAnimating.current) return;
+    
+    if (cat.subItems && cat.subItems.length > 0) {
+      // Toggle dropdown
+      if (expandedCategory === cat.id) {
+        setExpandedCategory(null);
+      } else {
+        setExpandedCategory(cat.id);
+      }
+    } else {
+      // Navigate to category - close dropdown first if open
+      if (expandedCategory) {
+        setExpandedCategory(null);
+        // Wait for close animation before navigating
+        setTimeout(() => {
+          navigation.navigate('Category', { category: cat.id });
+        }, 200);
+      } else {
+        navigation.navigate('Category', { category: cat.id });
+      }
+    }
+  };
+
+  // Handle subcategory navigation
+  const handleSubcategoryPress = (cat, subItem) => {
+    setExpandedCategory(null);
+    if (subItem.params) {
+      navigation.navigate('Category', { category: subItem.path, ...subItem.params });
+    } else {
+      navigation.navigate('Category', { category: cat.id, subcategory: subItem.path });
+    }
   };
 
   return (
@@ -363,15 +550,167 @@ const CategoryScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Category Filter Bar */}
+      <View className="bg-white border-b border-gray-200" style={{ position: 'relative', zIndex: 100 }}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12, gap: 8 }}
+          style={{ position: 'relative' }}
+          nestedScrollEnabled={true}
+        >
+          {categories.map((cat) => {
+            const isActive = categoryType === cat.id;
+            const isExpanded = expandedCategory === cat.id;
+            const hasSubItems = cat.subItems && cat.subItems.length > 0;
+            
+            return (
+              <View 
+                key={cat.id} 
+                onLayout={(event) => {
+                  const { x, y, width, height } = event.nativeEvent.layout;
+                  setCategoryLayouts(prev => ({
+                    ...prev,
+                    [cat.id]: { x, y, width, height }
+                  }));
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => handleCategoryPress(cat)}
+                  className={`flex-row items-center px-4 py-2 rounded-full border ${
+                    isActive 
+                      ? 'bg-black border-black' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                  activeOpacity={0.7}
+                >
+                  <Text className={`text-sm font-semibold ${
+                    isActive ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {cat.label}
+                  </Text>
+                  {hasSubItems && (
+                    <Ionicons 
+                      name={isExpanded ? "chevron-up" : "chevron-down"} 
+                      size={16} 
+                      color={isActive ? "#fff" : "#6b7280"}
+                      style={{ marginLeft: 4 }}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+      
       {/* Product Count */}
-      {!isLoading && filteredList.length > 0 && (
+      {!isLoading && filteredList.length > 0 ? (
         <View className="py-2 bg-white" style={{ paddingHorizontal: 16 }}>
           <Text className="text-sm text-gray-500">
-            {filteredList.length} {filteredList.length === 1 ? 'product' : 'products'}
+            {`${filteredList.length} ${filteredList.length === 1 ? 'product' : 'products'}`}
           </Text>
         </View>
-      )}
+      ) : null}
       </SafeAreaView>
+      
+      {/* Dropdown Menu - Rendered outside SafeAreaView for proper visibility */}
+      {isDropdownVisible ? (() => {
+        const cat = categories.find(c => c.id === expandedCategory);
+        if (!cat || !cat.subItems || cat.subItems.length === 0) return null;
+        
+        return (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 110, // Position below header (approx 60px) + category bar (approx 50px)
+              left: 12,
+              right: 12,
+              zIndex: 1000,
+              backgroundColor: 'transparent',
+              pointerEvents: 'box-none',
+              opacity: dropdownOpacity,
+              transform: [{ scale: dropdownScale }],
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#e5e7eb',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 20,
+                minWidth: 180,
+                maxWidth: 220,
+                alignSelf: 'flex-start',
+              }}
+              onStartShouldSetResponder={() => true}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  // Map 'eyewear' to 'lenses' for API compatibility
+                  const categoryPath = cat.id === 'eyewear' ? 'lenses' : cat.id;
+                  navigation.navigate('Category', { category: categoryPath });
+                  setExpandedCategory(null);
+                }}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#f3f4f6',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                  {`Shop All ${cat.label}`}
+                </Text>
+              </TouchableOpacity>
+              {cat.subItems.map((subItem, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => handleSubcategoryPress(cat, subItem)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderBottomWidth: idx < cat.subItems.length - 1 ? 1 : 0,
+                    borderBottomColor: '#f3f4f6',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 14, color: '#374151' }}>{subItem.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        );
+      })() : null}
+      
+      {/* Overlay to close dropdown when clicking outside - with animation */}
+      {isDropdownVisible ? (
+        <Animated.View
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            zIndex: 999,
+            opacity: overlayOpacity,
+          }}
+          pointerEvents={expandedCategory ? 'auto' : 'none'}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setExpandedCategory(null)}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
+      ) : null}
 
       {/* Products FlatList */}
       <FlatList
@@ -383,6 +722,7 @@ const CategoryScreen = () => {
         columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 4 }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        onScrollBeginDrag={() => expandedCategory && setExpandedCategory(null)}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
         refreshControl={
@@ -519,7 +859,7 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
             </View>
 
             {/* Brands */}
-            {brands.length > 0 && (
+            {brands.length > 0 ? (
               <View className="mb-6">
                 <Text className="text-base font-semibold text-gray-900 mb-3">Brands</Text>
                 {brands.map((brand) => (
@@ -538,10 +878,10 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
+            ) : null}
 
             {/* Sizes */}
-            {sizes.length > 0 && (
+            {sizes.length > 0 ? (
               <View className="mb-6">
                 <Text className="text-base font-semibold text-gray-900 mb-3">Sizes</Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -562,7 +902,7 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
                   ))}
                 </View>
               </View>
-            )}
+            ) : null}
           </ScrollView>
 
           <View className="flex-row p-4 border-t border-gray-200 gap-3">

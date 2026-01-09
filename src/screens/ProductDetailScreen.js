@@ -952,7 +952,7 @@ const ProductDetailScreen = () => {
           <View style={styles.relatedSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>On Sale</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'sale' })}>
+              <TouchableOpacity onPress={() => navigation.navigate('Sale')}>
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -991,7 +991,7 @@ const ProductDetailScreen = () => {
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionTitle}>
-              Customer Reviews {reviews.length > 0 && `(${reviews.length})`}
+              Customer Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
             </Text>
             {isAuthenticated && !showReviewForm && (
               <TouchableOpacity

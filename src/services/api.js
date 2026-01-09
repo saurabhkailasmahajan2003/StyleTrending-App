@@ -69,17 +69,16 @@ const apiRequest = async (endpoint, options = {}) => {
     // Return data directly (matches web: return data from response.json())
     return response.data;
   } catch (error) {
-    // Enhanced error logging
-    console.error(`❌ API Error: ${fullUrl}`);
-    console.error('   Error Type:', error.code || 'Unknown');
-    console.error('   Error Message:', error.message);
-    
+    // Enhanced error logging - concise and useful
     if (error.response) {
-      console.error('   Response Status:', error.response.status);
-      console.error('   Response Data:', error.response.data);
+      // Server responded with error status
+      const status = error.response.status;
+      const errorMessage = error.response.data?.message || `Server error (${status})`;
       
-      // Create error with response data attached (matches web format)
-      const apiError = new Error(error.response.data?.message || 'Something went wrong');
+      console.error(`❌ API Error [${status}]: ${endpoint}`);
+      console.error(`   ${errorMessage}`);
+      
+      const apiError = new Error(errorMessage);
       apiError.response = { 
         data: error.response.data, 
         status: error.response.status 
@@ -87,16 +86,29 @@ const apiRequest = async (endpoint, options = {}) => {
       throw apiError;
     }
     
-    if (error.request) {
-      console.error('   Network Error: No response received');
-      console.error('   Request:', error.request);
-      const networkError = new Error('Network error: Unable to reach server. Please check your connection and ensure the backend is running.');
+    if (error.request || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+      // Network error - no response received
+      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+      const errorMsg = isTimeout 
+        ? `Request timeout: Server took too long to respond (${config.timeout}ms)`
+        : 'Network error: Unable to reach server. Please check your connection.';
+      
+      console.error(`❌ Network Error: ${endpoint}`);
+      console.error(`   ${errorMsg}`);
+      if (error.code) {
+        console.error(`   Error Code: ${error.code}`);
+      }
+      
+      const networkError = new Error(errorMsg);
       networkError.isNetworkError = true;
+      networkError.isTimeout = isTimeout;
       throw networkError;
     }
     
-    // Other errors
-    const genericError = new Error(error.message || 'Network error');
+    // Other errors (configuration, etc.)
+    console.error(`❌ API Error: ${endpoint}`);
+    console.error(`   ${error.message || 'Unknown error occurred'}`);
+    const genericError = new Error(error.message || 'An unexpected error occurred');
     throw genericError;
   }
 };

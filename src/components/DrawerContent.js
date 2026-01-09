@@ -20,6 +20,7 @@ const DrawerContent = ({ onClose }) => {
       subItems: [
         { name: 'Shirts', path: 'shirt' },
         { name: 'T-Shirts', path: 'tshirt' },
+        { name: 'Jeans', path: 'jeans' },
         { name: 'Trousers', path: 'trousers' },
         { name: 'Shoes', path: 'shoes' }
       ] 
@@ -92,9 +93,9 @@ const DrawerContent = ({ onClose }) => {
                 resizeMode="contain"
               />
             </View>
-            {isAuthenticated && user?.name && (
+            {isAuthenticated && user?.name ? (
               <Text className="text-xs text-gray-500 mt-1">Hello, {user.name}</Text>
-            )}
+            ) : null}
           </View>
           <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
             <Ionicons name="close" size={24} color="#9ca3af" />
@@ -144,7 +145,7 @@ const DrawerContent = ({ onClose }) => {
           <TouchableOpacity onPress={() => handleNavigation('Category', { category: 'new-arrival' })} className="mb-4">
             <Text className="text-2xl font-light tracking-tight text-gray-900">New Arrivals</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleNavigation('Category', { category: 'sale' })} className="mb-4">
+          <TouchableOpacity onPress={() => handleNavigation('Sale')} className="mb-4">
             <Text className="text-2xl font-bold tracking-tight text-red-600">Sale</Text>
           </TouchableOpacity>
         </View>

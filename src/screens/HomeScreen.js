@@ -39,61 +39,83 @@ const IconClose = ({ color = '#fff', size = 24 }) => (
 // --- API FETCH FUNCTIONS (Preserved exactly as provided) ---
 const fetchFreshDrops = async () => {
   try {
-    const [menShoes, womenShoes, accessories, watches, lenses, mensLenses, menItems, womenItems] = await Promise.all([
-      productAPI.getMenItems({ limit: 4, category: 'shoes' }),
-      productAPI.getWomenItems({ limit: 4, category: 'shoes' }),
-      productAPI.getAccessories({ limit: 4 }),
-      productAPI.getWatches({ limit: 4 }),
-      productAPI.getLenses({ limit: 4 }),
-      productAPI.getLenses({ limit: 4, gender: 'men' }),
-      productAPI.getMenItems({ limit: 4 }),
-      productAPI.getWomenItems({ limit: 4 })
+    // Fetch diverse products from different categories
+    const [
+      menShirts,
+      menTshirts,
+      womenTshirts,
+      menTrousers,
+      womenJeans,
+      accessories,
+      watches,
+      lenses
+    ] = await Promise.all([
+      productAPI.getMenItems({ limit: 3, category: 'shirt' }),
+      productAPI.getMenItems({ limit: 3, category: 'tshirt' }),
+      productAPI.getWomenItems({ limit: 3, category: 'tshirt' }),
+      productAPI.getMenItems({ limit: 3, category: 'trousers' }),
+      productAPI.getWomenItems({ limit: 3, category: 'jeans' }),
+      productAPI.getAccessories({ limit: 3 }),
+      productAPI.getWatches({ limit: 3 }),
+      productAPI.getLenses({ limit: 3 })
     ]);
     
     let allProducts = [];
     
-    // 4 from men shoes
-    if (menShoes?.success && menShoes.data?.products) {
-      allProducts = [...allProducts, ...menShoes.data.products.slice(0, 4)];
+    // Add products from different categories for variety
+    if (menShirts?.success && menShirts.data?.products) {
+      allProducts = [...allProducts, ...menShirts.data.products.slice(0, 2)];
     }
     
-    // 4 from women shoes
-    if (womenShoes?.success && womenShoes.data?.products) {
-      allProducts = [...allProducts, ...womenShoes.data.products.slice(0, 4)];
+    if (menTshirts?.success && menTshirts.data?.products) {
+      allProducts = [...allProducts, ...menTshirts.data.products.slice(0, 2)];
     }
     
-    // 4 from accessories
+    if (womenTshirts?.success && womenTshirts.data?.products) {
+      allProducts = [...allProducts, ...womenTshirts.data.products.slice(0, 2)];
+    }
+    
+    if (menTrousers?.success && menTrousers.data?.products) {
+      allProducts = [...allProducts, ...menTrousers.data.products.slice(0, 2)];
+    }
+    
+    if (womenJeans?.success && womenJeans.data?.products) {
+      allProducts = [...allProducts, ...womenJeans.data.products.slice(0, 2)];
+    }
+    
     if (accessories?.success && accessories.data?.products) {
-      allProducts = [...allProducts, ...accessories.data.products.slice(0, 4)];
+      allProducts = [...allProducts, ...accessories.data.products.slice(0, 2)];
     }
     
-    // 4 from watches
     if (watches?.success && watches.data?.products) {
-      allProducts = [...allProducts, ...watches.data.products.slice(0, 4)];
+      allProducts = [...allProducts, ...watches.data.products.slice(0, 2)];
     }
     
-    // 4 from lenses
     if (lenses?.success && lenses.data?.products) {
-      allProducts = [...allProducts, ...lenses.data.products.slice(0, 4)];
+      allProducts = [...allProducts, ...lenses.data.products.slice(0, 2)];
     }
     
-    // 4 from men lenses
-    if (mensLenses?.success && mensLenses.data?.products) {
-      allProducts = [...allProducts, ...mensLenses.data.products.slice(0, 4)];
-    }
+    // Filter out sarees from all products
+    const filteredProducts = allProducts.filter(product => {
+      if (!product) return false;
+      
+      const subCategory = (product.subCategory || '').toLowerCase().trim();
+      const category = (product.category || '').toLowerCase().trim();
+      const name = (product.name || '').toLowerCase().trim();
+      
+      // Exclude sarees
+      const isSaree = subCategory === 'saree' || subCategory === 'sari' || 
+                     category === 'saree' || category === 'sari' ||
+                     /\bsaree\b/.test(name) || /\bsari\b/.test(name);
+      
+      return !isSaree;
+    });
     
-    // 4 from men items
-    if (menItems?.success && menItems.data?.products) {
-      allProducts = [...allProducts, ...menItems.data.products.slice(0, 4)];
-    }
+    // Shuffle products to show different order each time
+    const shuffled = filteredProducts.sort(() => Math.random() - 0.5);
     
-    // 4 from women items
-    if (womenItems?.success && womenItems.data?.products) {
-      allProducts = [...allProducts, ...womenItems.data.products.slice(0, 4)];
-    }
-    
-    // Ensure at least 15 products
-    return allProducts.slice(0, Math.max(15, allProducts.length));
+    // Return first 4 products for display
+    return shuffled.slice(0, 4);
   } catch (error) {
     console.error("Error fetching fresh drops:", error);
     return [];
@@ -324,6 +346,16 @@ const SkeletonCard = () => (
 
 // --- PRODUCT SECTION COMPONENT ---
 const ProductSection = ({ title, subtitle, products, viewAllLink, bgColor = 'bg-white', isLoading, navigation }) => {
+  const handleViewAll = () => {
+    if (title === 'On Sale') {
+      navigation.navigate('Sale');
+    } else if (title === 'Fresh Drops') {
+      navigation.navigate('FreshDrops');
+    } else if (viewAllLink) {
+      navigation.navigate('Category', { category: viewAllLink.replace('/', '') });
+    }
+  };
+
   return (
     <View className={`py-6 px-4 ${bgColor}`} style={{ paddingHorizontal: 16 }}>
       <View className="flex-row justify-between items-center mb-5">
@@ -331,9 +363,9 @@ const ProductSection = ({ title, subtitle, products, viewAllLink, bgColor = 'bg-
           <Text className="text-xl font-bold text-gray-900">{title}</Text>
           {subtitle && <Text className="text-gray-500 text-xs mt-1">{subtitle}</Text>}
         </View>
-        {viewAllLink && (
+        {(viewAllLink || title === 'On Sale' || title === 'Fresh Drops') && (
           <TouchableOpacity
-            onPress={() => navigation.navigate('Category', { category: viewAllLink.replace('/', '') })}
+            onPress={handleViewAll}
             className="bg-gray-900 px-4 py-2 rounded-full ml-3"
           >
             <Text className="text-white text-xs font-bold">View All</Text>
@@ -448,19 +480,19 @@ const HomeScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {searchQuery.length > 0 && (
+            {searchQuery.length > 0 ? (
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 className="ml-2"
               >
                 <Ionicons name="close-circle" size={18} color="#6b7280" />
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
         </View>
 
         {/* --- SEARCH RESULTS --- */}
-        {searchQuery.trim().length > 0 && (
+        {searchQuery.trim().length > 0 ? (
           <View className="bg-white" style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
             {isSearching ? (
               <View className="py-8 items-center">
@@ -479,14 +511,14 @@ const HomeScreen = () => {
                     </View>
                   ))}
                 </View>
-                {searchResults.length > 8 && (
+                {searchResults.length > 8 ? (
                   <TouchableOpacity
                     onPress={() => navigation.navigate('Search', { query: searchQuery })}
                     className="mt-4 py-3 bg-gray-900 rounded-lg items-center"
                   >
                     <Text className="text-white font-semibold">View All {searchResults.length} Results</Text>
                   </TouchableOpacity>
-                )}
+                ) : null}
               </>
             ) : (
               <View className="py-8 items-center">
@@ -498,10 +530,10 @@ const HomeScreen = () => {
               </View>
             )}
           </View>
-        )}
+        ) : null}
         
          {/* --- HERO SECTION --- */}
-         {searchQuery.trim().length === 0 && (
+         {searchQuery.trim().length === 0 ? (
            <>
          <View className="relative w-full bg-gray-100" style={{ width: SCREEN_WIDTH }}>
             <TouchableOpacity 
@@ -644,7 +676,6 @@ const HomeScreen = () => {
            title="Fresh Drops"
            subtitle="Be the first to wear the trend"
            products={freshDrops.slice(0, 4)}
-           viewAllLink="men/shoes"
            isLoading={isLoading}
            navigation={navigation}
          />
@@ -654,7 +685,6 @@ const HomeScreen = () => {
            title="On Sale"
            subtitle="Limited time offers"
            products={saleItems.slice(0, 4)}
-           viewAllLink="sale"
            isLoading={isLoading}
            navigation={navigation}
          />
@@ -829,23 +859,23 @@ const HomeScreen = () => {
             </TouchableOpacity>
 
             {/* Navigation Buttons */}
-            {activeStoryIndex > 0 && (
+            {activeStoryIndex > 0 ? (
               <TouchableOpacity 
                 onPress={() => setActiveStoryIndex(activeStoryIndex - 1)}
                 className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/10 rounded-full"
               >
                 <IconChevronLeft />
               </TouchableOpacity>
-            )}
+            ) : null}
             
-            {activeStoryIndex !== null && activeStoryIndex < stories.length - 1 && (
+            {activeStoryIndex !== null && activeStoryIndex < stories.length - 1 ? (
               <TouchableOpacity 
                 onPress={() => setActiveStoryIndex(activeStoryIndex + 1)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/10 rounded-full"
               >
                 <IconChevronRight />
               </TouchableOpacity>
-            )}
+            ) : null}
 
             {/* Content */}
             {activeStoryIndex !== null && (
@@ -877,7 +907,7 @@ const HomeScreen = () => {
           </View>
         </Modal>
         </>
-        )}
+        ) : null}
 
       </ScrollView>
       <BottomNavBar />
