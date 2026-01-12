@@ -16,7 +16,7 @@ const HomeHeader = () => {
   const openDrawer = () => {
     // Find the drawer navigator in the navigation hierarchy
     let nav = navigation;
-    
+
     // Traverse up the navigation tree to find the drawer
     while (nav) {
       try {
@@ -28,7 +28,7 @@ const HomeHeader = () => {
         if (!nav) break;
       }
     }
-    
+
     // If drawer not found, try direct dispatch
     try {
       navigation.dispatch(DrawerActions.openDrawer());
@@ -44,31 +44,31 @@ const HomeHeader = () => {
         {/* Logo */}
         <TouchableOpacity onPress={() => navigation.navigate('Home')} activeOpacity={0.8}>
           <View className="flex-row items-center">
-            <View className="w-8 h-8 bg-black rounded-full items-center justify-center mr-2">
-              <Text className="text-white text-lg font-bold">S</Text>
-            </View>
-            <Text className="text-xl font-bold text-black">StyleTrending</Text>
+
+            
           </View>
+          <Text className="text-xl font-bold text-black ml-3">StyleTrending</Text>
+
         </TouchableOpacity>
 
         {/* Icons */}
         <View className="flex-row items-center gap-4">
           {/* Profile */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.7}
             className="p-2"
           >
-            <Ionicons name={isAuthenticated ? "person" : "person-outline"} size={22} color="#000" />
+            <Ionicons name="person-outline" size={22} color="#000" />
           </TouchableOpacity>
 
           {/* Hamburger Menu - Opens Drawer */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={openDrawer}
             activeOpacity={0.7}
             className="p-2"
           >
-            <Ionicons name="reorder-three-outline" size={26} color="#000" />
+            <Ionicons name="menu-outline" size={28} color="#000" />
           </TouchableOpacity>
         </View>
       </View>

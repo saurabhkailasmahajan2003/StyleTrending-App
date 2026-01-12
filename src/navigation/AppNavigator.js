@@ -44,6 +44,43 @@ function MainStack() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        animationEnabled: true,
+        animationTypeForReplace: 'push',
+        transitionSpec: {
+          open: {
+            animation: 'timing',
+            config: {
+              duration: 200,
+              useNativeDriver: true,
+            },
+          },
+          close: {
+            animation: 'timing',
+            config: {
+              duration: 200,
+              useNativeDriver: true,
+            },
+          },
+        },
+        cardStyleInterpolator: ({ current, layouts }) => {
+          return {
+            cardStyle: {
+              transform: [
+                {
+                  translateX: current.progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [layouts.screen.width, 0],
+                  }),
+                },
+              ],
+              opacity: current.progress.interpolate({
+                inputRange: [0, 0.3, 1],
+                outputRange: [0, 0.5, 1],
+              }),
+            },
+          };
+        },
+        detachInactiveScreens: false, // Keep screens mounted for smoother transitions
       }}
     >
       <Stack.Screen 
@@ -122,8 +159,19 @@ function DrawerNavigator() {
           backgroundColor: '#fff',
         },
         overlayColor: 'rgba(0, 0, 0, 0.5)',
-        drawerPosition: 'left',
+        drawerPosition: 'right',
         swipeEnabled: true,
+        drawerAnimationType: 'slide',
+        drawerHideStatusBarOnOpen: false,
+        drawerActiveTintColor: '#000',
+        drawerInactiveTintColor: '#666',
+        gestureHandlerProps: {
+          enableTrackpadTwoFingerGesture: false,
+          activeOffsetX: [-10, 10],
+          failOffsetY: [-5, 5],
+        },
+        animationEnabled: true,
+        swipeEdgeWidth: 20,
       }}
     >
       <Drawer.Screen 

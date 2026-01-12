@@ -2,13 +2,13 @@
  * Drawer Content Component
  * Side navigation drawer matching the design
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
-const DrawerContent = ({ onClose }) => {
+const DrawerContent = React.memo(({ onClose }) => {
   const navigation = useNavigation();
   const { isAuthenticated, user, logout } = useAuth();
   const [expandedCategory, setExpandedCategory] = useState(null);
@@ -91,6 +91,7 @@ const DrawerContent = ({ onClose }) => {
                 className="h-10 w-auto"
                 style={{ height: 40, width: 120 }}
                 resizeMode="contain"
+                fadeDuration={0}
               />
             </View>
             {isAuthenticated && user?.name ? (
@@ -232,7 +233,9 @@ const DrawerContent = ({ onClose }) => {
       </View>
     </View>
   );
-};
+});
+
+DrawerContent.displayName = 'DrawerContent';
 
 export default DrawerContent;
 

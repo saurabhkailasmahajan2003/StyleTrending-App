@@ -173,14 +173,122 @@ const CategoryScreen = () => {
           // Use 'category' parameter (as used in HomeScreen) instead of 'subCategory'
           response = await fetcher({ category: categoryInfo.subCategory, limit: fetchLimit });
           
+          // If no products found with category filter, try fetching all and filtering client-side
+          let needsClientSideFilter = false;
+          if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+            console.log(`[${categoryInfo.subCategory}] No products found with category filter, trying to fetch all and filter...`);
+            const allResponse = await fetcher({ limit: fetchLimit });
+            if (allResponse && allResponse.success && allResponse.data?.products) {
+              response = allResponse;
+              needsClientSideFilter = true; // Mark that we need to filter client-side
+            }
+          }
+          
           if (response && response.success && response.data.products) {
-            // Additional filtering to ensure we only get the correct subcategory
-            const filteredProducts = response.data.products.filter(product => {
-              const productSubCategory = (product.subCategory || product.category || '').toLowerCase().trim().replace(/-/g, '');
-              const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
-              return productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
-            });
-            response.data.products = filteredProducts.length > 0 ? filteredProducts : response.data.products;
+            const originalCount = response.data.products.length;
+            
+            // Only apply strict filtering if we fetched all products (client-side filtering needed)
+            // If API returned products with category parameter, trust them (they're already filtered by API)
+            if (needsClientSideFilter) {
+              // Additional filtering to ensure we only get the correct subcategory
+              const filteredProducts = response.data.products.filter(product => {
+                if (!product) return false;
+                
+                const productSubCategory = (product.subCategory || '').toLowerCase().trim().replace(/-/g, '');
+                const productCategory = (product.category || '').toLowerCase().trim().replace(/-/g, '');
+                const productName = (product.name || '').toLowerCase().trim();
+                const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
+                
+                // Priority 1: Exact match in subCategory (most reliable)
+                if (productSubCategory === expectedSubCategory) {
+                  return true;
+                }
+                
+                // Priority 2: Exact match in category
+                if (productCategory === expectedSubCategory) {
+                  return true;
+                }
+                
+                // Priority 3: For jeans specifically, check for jeans/denim keywords
+                if (expectedSubCategory === 'jeans') {
+                  // Must have jeans/denim in subCategory, category, or name
+                  const hasJeansKeyword = productSubCategory.includes('jean') || 
+                                         productCategory.includes('jean') ||
+                                         productName.includes('jean') || 
+                                         productName.includes('denim') ||
+                                         productSubCategory.includes('denim') ||
+                                         productCategory.includes('denim');
+                  
+                  // Exclude other categories explicitly
+                  const isOtherCategory = productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                         productSubCategory === 'trouser' || productSubCategory === 'shoe' ||
+                                         productSubCategory === 'saree' ||
+                                         productCategory === 'shirt' || productCategory === 'tshirt' ||
+                                         productCategory === 'trouser' || productCategory === 'shoe' ||
+                                         productCategory === 'saree';
+                  
+                  return hasJeansKeyword && !isOtherCategory;
+                }
+                
+                // Priority 4: For shoes specifically, check for shoe/shoes keywords
+                if (expectedSubCategory === 'shoes') {
+                  // Must have shoe/shoes in subCategory, category, or name
+                  const hasShoeKeyword = productSubCategory.includes('shoe') || 
+                                        productCategory.includes('shoe') ||
+                                        productName.includes('shoe') || 
+                                        productName.includes('sneaker') ||
+                                        productName.includes('footwear');
+                  
+                  // Exclude other categories explicitly
+                  const isOtherCategory = productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                         productSubCategory === 'trouser' || productSubCategory === 'jean' ||
+                                         productSubCategory === 'saree' ||
+                                         productCategory === 'shirt' || productCategory === 'tshirt' ||
+                                         productCategory === 'trouser' || productCategory === 'jean' ||
+                                         productCategory === 'saree';
+                  
+                  return hasShoeKeyword && !isOtherCategory;
+                }
+                
+                // For other categories, use strict matching with fallback to includes
+                const matchesSubCategory = productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
+                const matchesCategory = productCategory === expectedSubCategory || productCategory.includes(expectedSubCategory);
+                
+                return matchesSubCategory || matchesCategory;
+              });
+              
+              response.data.products = filteredProducts.length > 0 ? filteredProducts : [];
+              console.log(`[${categoryInfo.subCategory}] Client-side filtered: ${filteredProducts.length} products from ${originalCount} total`);
+            } else {
+              // API already filtered by category, but do a light validation to ensure quality
+              // Only filter out obvious mismatches, but trust the API results
+              const validatedProducts = response.data.products.filter(product => {
+                if (!product) return false;
+                
+                const productSubCategory = (product.subCategory || product.category || '').toLowerCase().trim().replace(/-/g, '');
+                const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
+                
+                // For jeans and shoes, do a light check to exclude obvious wrong categories
+                if (expectedSubCategory === 'jeans') {
+                  const isOtherCategory = productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                         productSubCategory === 'trouser' || productSubCategory === 'shoe' ||
+                                         productSubCategory === 'saree';
+                  return !isOtherCategory; // Exclude obvious wrong categories
+                }
+                
+                if (expectedSubCategory === 'shoes') {
+                  const isOtherCategory = productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                         productSubCategory === 'trouser' || productSubCategory === 'jean' ||
+                                         productSubCategory === 'saree';
+                  return !isOtherCategory; // Exclude obvious wrong categories
+                }
+                
+                return true; // Trust API for other categories
+              });
+              
+              response.data.products = validatedProducts;
+              console.log(`[${categoryInfo.subCategory}] API filtered: ${validatedProducts.length} products (trusting API)`);
+            }
           }
           
           const genderDisplay = activeGender.charAt(0).toUpperCase() + activeGender.slice(1);
@@ -197,12 +305,35 @@ const CategoryScreen = () => {
       }
 
       if (response && response.success) {
-        setAllProducts(response.data.products || []);
+        // Handle different response structures
+        let products = [];
+        if (Array.isArray(response.data)) {
+          products = response.data;
+        } else if (response.data?.products && Array.isArray(response.data.products)) {
+          products = response.data.products;
+        } else if (response.data && Array.isArray(response.data)) {
+          products = response.data;
+        } else if (Array.isArray(response)) {
+          products = response;
+        }
+        
+        console.log(`[Fetch] Setting ${products.length} products to allProducts`);
+        console.log(`[Fetch] Response structure:`, {
+          hasData: !!response.data,
+          dataIsArray: Array.isArray(response.data),
+          hasProducts: !!response.data?.products,
+          productsIsArray: Array.isArray(response.data?.products)
+        });
+        setAllProducts(products);
       } else {
+        console.log('[Fetch] No response or response not successful', {
+          hasResponse: !!response,
+          isSuccess: response?.success
+        });
         setAllProducts([]);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('[Fetch] Error fetching products:', error);
       setAllProducts([]);
     } finally {
       setIsLoading(false);
@@ -211,23 +342,33 @@ const CategoryScreen = () => {
   }, [categoryType, activeGender, activeCategory]);
 
   useEffect(() => {
-    fetchProducts();
-    // Reset filters when category changes
+    // Reset state when category changes
+    setDisplayedProducts([]);
+    setFilteredList([]);
+    setHasMore(true);
     setFilters({
       priceRange: null,
       brands: [],
       sizes: [],
       sortBy: null,
     });
-    setDisplayedProducts([]);
-    setHasMore(true);
     // Close dropdown when category changes
     setExpandedCategory(null);
+    // Fetch products
+    fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryType, activeGender, activeCategory]);
 
   // 2. Filter Logic (Preserved from web)
   useEffect(() => {
+    // Don't filter if still loading
+    if (isLoading) {
+      console.log('[Client Filter] Skipping filter - still loading');
+      return;
+    }
+    
     let filtered = [...allProducts];
+    console.log(`[Client Filter] Starting with ${allProducts.length} products for ${activeGender}/${activeCategory}`);
 
     // Subcategory Filtering
     if (activeGender && activeCategory) {
@@ -250,11 +391,105 @@ const CategoryScreen = () => {
       const categoryInfo = categoryMap[activeCategory.toLowerCase()];
       
       if (categoryInfo) {
+        const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
+        
+        // Debug: Log sample products to understand structure (only for jeans/shoes)
+        if (filtered.length > 0 && (expectedSubCategory === 'jeans' || expectedSubCategory === 'shoes')) {
+          const sampleProducts = filtered.slice(0, 10);
+          console.log(`[Client Filter] Sample products for ${expectedSubCategory}:`, sampleProducts.map(p => ({
+            name: p.name,
+            category: p.category,
+            subCategory: p.subCategory,
+            subcategory: p.subcategory, // Check alternative field name
+            gender: p.gender,
+            type: p.type,
+            productType: p.productType
+          })));
+        }
+        
         filtered = filtered.filter(product => {
-          const productSubCategory = (product.subCategory || '').toLowerCase().trim().replace(/-/g, '');
-          const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
-          return productSubCategory === expectedSubCategory;
+          if (!product) return false;
+          
+          // Check multiple possible field names
+          const productSubCategory = (product.subCategory || product.subcategory || product.type || '').toLowerCase().trim().replace(/-/g, '');
+          const productCategory = (product.category || product.productCategory || '').toLowerCase().trim().replace(/-/g, '');
+          const productName = (product.name || product.title || product.productName || '').toLowerCase().trim();
+          
+          // Priority 1: Exact match in subCategory (most reliable)
+          if (productSubCategory === expectedSubCategory) {
+            return true;
+          }
+          
+          // Priority 2: Exact match in category
+          if (productCategory === expectedSubCategory) {
+            return true;
+          }
+          
+          // Priority 3: For jeans specifically, check for jeans/denim keywords
+          if (expectedSubCategory === 'jeans') {
+            // Must have jeans/denim in subCategory, category, or name
+            const hasJeansKeyword = productSubCategory.includes('jean') || 
+                                   productCategory.includes('jean') ||
+                                   productName.includes('jean') || 
+                                   productName.includes('denim') ||
+                                   productSubCategory.includes('denim') ||
+                                   productCategory.includes('denim');
+            
+            // Only exclude if it's clearly another category (not just missing jeans keyword)
+            const isClearlyOtherCategory = (productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                   productSubCategory === 'trouser' || productSubCategory === 'shoe' ||
+                                   productSubCategory === 'saree') &&
+                                   !productSubCategory.includes('jean') && !productSubCategory.includes('denim');
+            
+            const isClearlyOtherCategoryInCategory = (productCategory === 'shirt' || productCategory === 'tshirt' ||
+                                   productCategory === 'trouser' || productCategory === 'shoe' ||
+                                   productCategory === 'saree') &&
+                                   !productCategory.includes('jean') && !productCategory.includes('denim');
+            
+            // If it has jeans keyword, include it
+            if (hasJeansKeyword && !isClearlyOtherCategory && !isClearlyOtherCategoryInCategory) {
+              return true;
+            }
+            
+            // If no clear match and no clear exclusion, be more lenient - check if name suggests jeans
+            if (!isClearlyOtherCategory && !isClearlyOtherCategoryInCategory) {
+              // If name has jeans/denim, include it
+              if (productName.includes('jean') || productName.includes('denim')) {
+                return true;
+              }
+            }
+            
+            // Otherwise exclude
+            return false;
+          }
+          
+          // Priority 4: For shoes specifically, check for shoe/shoes keywords
+          if (expectedSubCategory === 'shoes') {
+            // Must have shoe/shoes in subCategory, category, or name
+            const hasShoeKeyword = productSubCategory.includes('shoe') || 
+                                  productCategory.includes('shoe') ||
+                                  productName.includes('shoe') || 
+                                  productName.includes('sneaker') ||
+                                  productName.includes('footwear');
+            
+            // Exclude other categories explicitly
+            const isOtherCategory = productSubCategory === 'shirt' || productSubCategory === 'tshirt' ||
+                                   productSubCategory === 'trouser' || productSubCategory === 'jean' ||
+                                   productSubCategory === 'saree' ||
+                                   productCategory === 'shirt' || productCategory === 'tshirt' ||
+                                   productCategory === 'trouser' || productCategory === 'jean' ||
+                                   productCategory === 'saree';
+            
+            return hasShoeKeyword && !isOtherCategory;
+          }
+          
+          // For other categories, use strict matching with fallback to includes
+          const matchesSubCategory = productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
+          const matchesCategory = productCategory === expectedSubCategory || productCategory.includes(expectedSubCategory);
+          
+          return matchesSubCategory || matchesCategory;
         });
+        console.log(`[Client Filter] After subcategory filter: ${filtered.length} products`);
       }
     }
 
@@ -305,10 +540,13 @@ const CategoryScreen = () => {
       }
     }
 
+    console.log(`[Client Filter] Final filtered count: ${filtered.length} products`);
     setFilteredList(filtered);
-    setDisplayedProducts(filtered.slice(0, ITEMS_PER_PAGE));
+    const initialDisplay = filtered.slice(0, ITEMS_PER_PAGE);
+    setDisplayedProducts(initialDisplay);
     setHasMore(filtered.length > ITEMS_PER_PAGE);
-  }, [allProducts, filters, activeGender, activeCategory]);
+    console.log(`[Client Filter] Displaying ${initialDisplay.length} products initially, hasMore: ${filtered.length > ITEMS_PER_PAGE}`);
+  }, [allProducts, filters, activeGender, activeCategory, isLoading]);
 
   // 3. Infinite Scroll Logic
   const loadMore = useCallback(() => {
@@ -389,9 +627,14 @@ const CategoryScreen = () => {
     return <ProductCard product={normalizedProduct} />;
   }, [normalizeProduct]);
 
-  // Key extractor for FlatList
-  const keyExtractor = useCallback((item) => {
-    return item._id || item.id || Math.random().toString();
+  // Key extractor for FlatList - ensures unique keys
+  const keyExtractor = useCallback((item, index) => {
+    const id = item._id || item.id;
+    if (id) {
+      return `product-${id}`;
+    }
+    // Fallback: use index with prefix to ensure uniqueness
+    return `product-${index}-${Date.now()}`;
   }, []);
 
   // List Footer - Loading indicator
@@ -419,11 +662,11 @@ const CategoryScreen = () => {
     return (
       <View className="py-15 items-center">
         <Text className="text-base text-gray-500 mb-4">No products found</Text>
-        {(filters.priceRange || filters.brands?.length > 0 || filters.sizes?.length > 0) ? (
+        {(filters.priceRange || filters.brands?.length > 0 || filters.sizes?.length > 0) && (
           <TouchableOpacity onPress={handleClearFilters} className="px-5 py-2.5 bg-gray-900 rounded-lg">
             <Text className="text-white text-sm font-semibold">Clear filters</Text>
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
     );
   };
@@ -605,17 +848,17 @@ const CategoryScreen = () => {
       </View>
       
       {/* Product Count */}
-      {!isLoading && filteredList.length > 0 ? (
+      {!isLoading && filteredList.length > 0 && (
         <View className="py-2 bg-white" style={{ paddingHorizontal: 16 }}>
           <Text className="text-sm text-gray-500">
-            {`${filteredList.length} ${filteredList.length === 1 ? 'product' : 'products'}`}
+            {filteredList.length} {filteredList.length === 1 ? 'product' : 'products'}
           </Text>
         </View>
-      ) : null}
+      )}
       </SafeAreaView>
       
       {/* Dropdown Menu - Rendered outside SafeAreaView for proper visibility */}
-      {isDropdownVisible ? (() => {
+      {isDropdownVisible && (() => {
         const cat = categories.find(c => c.id === expandedCategory);
         if (!cat || !cat.subItems || cat.subItems.length === 0) return null;
         
@@ -666,12 +909,12 @@ const CategoryScreen = () => {
                 activeOpacity={0.7}
               >
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
-                  {`Shop All ${cat.label}`}
+                  Shop All {cat.label}
                 </Text>
               </TouchableOpacity>
               {cat.subItems.map((subItem, idx) => (
                 <TouchableOpacity
-                  key={idx}
+                  key={`${cat.id}-${subItem.path}-${idx}`}
                   onPress={() => handleSubcategoryPress(cat, subItem)}
                   style={{
                     paddingHorizontal: 16,
@@ -687,10 +930,10 @@ const CategoryScreen = () => {
             </View>
           </Animated.View>
         );
-      })() : null}
+      })()}
       
       {/* Overlay to close dropdown when clicking outside - with animation */}
-      {isDropdownVisible ? (
+      {isDropdownVisible && (
         <Animated.View
           style={{ 
             position: 'absolute',
@@ -710,10 +953,11 @@ const CategoryScreen = () => {
             style={{ flex: 1 }}
           />
         </Animated.View>
-      ) : null}
+      )}
 
       {/* Products FlatList */}
       <FlatList
+        key={`${categoryType}-${activeGender}-${activeCategory}`}
         data={displayedProducts}
         renderItem={renderProduct}
         keyExtractor={keyExtractor}
@@ -728,20 +972,12 @@ const CategoryScreen = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
         initialNumToRender={10}
         windowSize={10}
-        getItemLayout={(data, index) => {
-          const itemHeight = 320; // Approximate item height
-          const rowIndex = Math.floor(index / 2);
-          return {
-            length: itemHeight,
-            offset: itemHeight * rowIndex,
-            index,
-          };
-        }}
+        extraData={displayedProducts.length}
       />
 
       {/* Filter Modal */}
@@ -859,7 +1095,7 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
             </View>
 
             {/* Brands */}
-            {brands.length > 0 ? (
+            {brands.length > 0 && (
               <View className="mb-6">
                 <Text className="text-base font-semibold text-gray-900 mb-3">Brands</Text>
                 {brands.map((brand) => (
@@ -878,10 +1114,10 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
                   </TouchableOpacity>
                 ))}
               </View>
-            ) : null}
+            )}
 
             {/* Sizes */}
-            {sizes.length > 0 ? (
+            {sizes.length > 0 && (
               <View className="mb-6">
                 <Text className="text-base font-semibold text-gray-900 mb-3">Sizes</Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -902,7 +1138,7 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
                   ))}
                 </View>
               </View>
-            ) : null}
+            )}
           </ScrollView>
 
           <View className="flex-row p-4 border-t border-gray-200 gap-3">

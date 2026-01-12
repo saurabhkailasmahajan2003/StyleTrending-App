@@ -30,6 +30,18 @@ const BottomNavBar = () => {
   };
 
   const navigateToScreen = (screenName) => {
+    // Prevent navigation if already on that screen
+    const currentRoute = route.name;
+    if (
+      (screenName === 'Home' && currentRoute === 'Home') ||
+      (screenName === 'Shop' && (currentRoute === 'Category' || currentRoute === 'Search')) ||
+      (screenName === 'Cart' && currentRoute === 'Cart') ||
+      (screenName === 'Profile' && currentRoute === 'Profile')
+    ) {
+      return; // Already on this screen, don't navigate
+    }
+
+    // Use navigate with reset to prevent stack buildup
     if (screenName === 'Home') {
       navigation.navigate('Home');
     } else if (screenName === 'Shop') {
@@ -42,7 +54,7 @@ const BottomNavBar = () => {
   };
 
   const navItems = [
-    { name: 'Home', icon: 'home', iconActive: 'home', route: 'Home' },
+    { name: 'Home', icon: 'home-outline', iconActive: 'home', route: 'Home' },
     { name: 'Shop', icon: 'grid-outline', iconActive: 'grid', route: 'Shop' },
     { name: 'Cart', icon: 'bag-outline', iconActive: 'bag', route: 'Cart', badge: cartItemCount },
     { name: 'Profile', icon: 'person-outline', iconActive: 'person', route: 'Profile' },

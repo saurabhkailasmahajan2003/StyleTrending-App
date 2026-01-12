@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Astra Fashion",
+    "name": "Styletrending",
     "slug": "astra-fashion",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767964106/Yellow_Bag_Online_Shop_Logo_1024_x_1024_px_h84fw5.svg",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767335138/Black_White_Bold_Simple_Initials_Name_Logo_4_d4iyzt.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -20,16 +20,22 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767335138/Black_White_Bold_Simple_Initials_Name_Logo_4_d4iyzt.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.astrafashion.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767335138/Black_White_Bold_Simple_Initials_Name_Logo_4_d4iyzt.png"
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7a51eba8-e99c-4a5c-8a7d-8cf811c112c3"
+      }
+    },
+    "owner": "saurabh_mahajan"
   }
 }
