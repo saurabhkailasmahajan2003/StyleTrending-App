@@ -8,11 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const ProductCard = ({ product }) => {
   const navigation = useNavigation();
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const { colors, isDark } = useTheme();
   
   const [isAdding, setIsAdding] = useState(false);
   const [showSizes, setShowSizes] = useState(false);
@@ -99,25 +101,27 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <View className="w-[48%] mb-4">
+    <View style={{ width: '48%', marginBottom: 16 }}>
       <TouchableOpacity 
         onPress={handleProductPress} 
         activeOpacity={0.9}
-        className="bg-white rounded-xl overflow-hidden"
         style={{ 
+          backgroundColor: colors.card,
+          borderRadius: 12,
+          overflow: 'hidden',
           elevation: 3, 
-          shadowColor: '#000', 
+          shadowColor: colors.shadow, 
           shadowOffset: { width: 0, height: 2 }, 
-          shadowOpacity: 0.12, 
+          shadowOpacity: isDark ? 0.3 : 0.12, 
           shadowRadius: 4 
         }}
       >
         {/* Image Container */}
-        <View className="relative w-full bg-gray-50" style={{ aspectRatio: 0.75 }}>
+        <View style={{ position: 'relative', width: '100%', backgroundColor: colors.backgroundTertiary, aspectRatio: 0.75 }}>
           {/* SALE Badge - Top Left */}
           {hasDiscount && (
-            <View className="absolute top-2 left-2 z-20 bg-red-500 px-2.5 py-1 rounded-md">
-              <Text className="text-white text-[9px] font-bold tracking-wide uppercase">
+            <View style={{ position: 'absolute', top: 8, left: 8, zIndex: 20, backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
                 SALE
               </Text>
             </View>
@@ -125,47 +129,46 @@ const ProductCard = ({ product }) => {
 
           {/* Loading Indicator */}
           {!imageLoaded && (
-            <View className="absolute inset-0 justify-center items-center bg-gray-50">
-              <ActivityIndicator size="small" color="#9ca3af" />
+            <View style={{ position: 'absolute', inset: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundTertiary }}>
+              <ActivityIndicator size="small" color={colors.textSecondary} />
             </View>
           )}
 
           {/* Product Image */}
           <Image
             source={{ uri: defaultImageSrc }}
-            className={`w-full h-full ${!imageLoaded ? 'opacity-0' : 'opacity-100'}`}
+            style={{ width: '100%', height: '100%', opacity: imageLoaded ? 1 : 0 }}
             onLoad={() => setImageLoaded(true)}
             resizeMode="cover"
           />
         </View>
 
         {/* Product Info Section */}
-        <View className="px-3 py-3 bg-white">
+        <View style={{ paddingHorizontal: 12, paddingVertical: 12, backgroundColor: colors.card }}>
           {/* Product Name */}
           <Text 
-            className="text-sm font-semibold text-gray-900 mb-1" 
+            style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4, lineHeight: 18, minHeight: 36 }}
             numberOfLines={2}
-            style={{ lineHeight: 18, minHeight: 36 }}
           >
             {product.name || 'Product Name'}
           </Text>
           
           {/* Category/Brand */}
           {product.category && (
-            <Text className="text-xs text-gray-400 mb-2" numberOfLines={1}>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 8 }} numberOfLines={1}>
               {product.category}
             </Text>
           )}
 
           {/* Price and Add Button Row */}
-          <View className="flex-row items-center justify-between mt-1">
-            <View className="flex-1">
-              <View className="flex-row items-baseline gap-1.5">
-                <Text className="text-base font-bold text-gray-900">
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                   ₹{(finalPrice || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </Text>
                 {hasDiscount && originalPrice > 0 && (
-                  <Text className="text-xs text-gray-400 line-through">
+                  <Text style={{ fontSize: 12, color: colors.textTertiary, textDecorationLine: 'line-through' }}>
                     ₹{(originalPrice || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </Text>
                 )}
@@ -177,26 +180,25 @@ const ProductCard = ({ product }) => {
               {!showSizes ? (
                 <TouchableOpacity
                   onPress={handleAddClick}
-                  className="w-8 h-8 bg-gray-900 rounded-full items-center justify-center"
+                  style={{ width: 32, height: 32, backgroundColor: colors.primary, borderRadius: 9999, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
                   disabled={isAdding}
                   activeOpacity={0.8}
-                  style={{ elevation: 2 }}
                 >
                   {isAdding ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={isDark ? '#000000' : '#FFFFFF'} />
                   ) : (
-                    <Ionicons name="add" size={20} color="#fff" />
+                    <Ionicons name="add" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
                   )}
                 </TouchableOpacity>
               ) : (
-                <View className="bg-white border border-gray-200 rounded-lg p-2 shadow-lg min-w-[130px]" style={{ elevation: 6 }}>
-                  <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-[10px] text-gray-700 font-bold tracking-wider uppercase">Size</Text>
-                    <TouchableOpacity onPress={() => setShowSizes(false)} className="p-0.5">
-                      <Ionicons name="close" size={12} color="#9ca3af" />
+                <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 6, minWidth: 130 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 10, color: colors.text, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>Size</Text>
+                    <TouchableOpacity onPress={() => setShowSizes(false)} style={{ padding: 2 }} activeOpacity={0.7}>
+                      <Ionicons name="close" size={12} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-                  <View className="flex-row flex-wrap gap-1">
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                     {sizes.slice(0, 4).map((size) => {
                       const sizeStr = String(size || '');
                       return (
@@ -204,16 +206,24 @@ const ProductCard = ({ product }) => {
                           key={sizeStr}
                           onPress={() => handleAddToCart(size)}
                           disabled={isAdding}
-                          className={`flex-1 min-w-[20%] h-7 border rounded justify-center items-center ${
-                            isAdding 
-                              ? 'bg-gray-50 border-gray-200' 
-                              : 'bg-white border-gray-300'
-                          }`}
+                          style={{
+                            flex: 1,
+                            minWidth: '20%',
+                            height: 28,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: isAdding ? colors.backgroundTertiary : colors.card,
+                            borderColor: isAdding ? colors.border : colors.border,
+                          }}
                           activeOpacity={0.7}
                         >
-                          <Text className={`text-[10px] font-bold ${
-                            isAdding ? 'text-gray-300' : 'text-gray-900'
-                          }`}>
+                          <Text style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: isAdding ? colors.textTertiary : colors.text,
+                          }}>
                             {sizeStr}
                           </Text>
                         </TouchableOpacity>

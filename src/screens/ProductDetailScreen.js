@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { productAPI, reviewAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import BottomNavBar from '../components/BottomNavBar';
@@ -31,6 +32,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Compact Product Card for Horizontal Lists
 const CompactProductCard = ({ product, navigation }) => {
+  const { colors, isDark } = useTheme();
   const [imageLoaded, setImageLoaded] = useState(false);
   
   // Get product image
@@ -60,36 +62,36 @@ const CompactProductCard = ({ product, navigation }) => {
     <TouchableOpacity
       onPress={() => navigation.navigate('ProductDetail', { productId, category: product.category })}
       activeOpacity={0.9}
-      style={styles.compactCard}
+      style={{ width: 160, marginRight: 12, backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden', shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}
     >
-      <View style={styles.compactImageContainer}>
+      <View style={{ width: '100%', height: 200, backgroundColor: colors.backgroundTertiary, position: 'relative' }}>
         {hasDiscount && (
-          <View style={styles.compactSaleBadge}>
-            <Text style={styles.compactSaleText}>SALE</Text>
+          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: colors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 10 }}>
+            <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 10, fontWeight: '700' }}>SALE</Text>
           </View>
         )}
         {!imageLoaded && (
-          <View style={styles.compactImageLoader}>
-            <ActivityIndicator size="small" color="#9ca3af" />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
         )}
         <Image
           source={{ uri: defaultImageSrc }}
-          style={[styles.compactImage, !imageLoaded && { opacity: 0 }]}
+          style={{ width: '100%', height: '100%', opacity: imageLoaded ? 1 : 0 }}
           onLoad={() => setImageLoaded(true)}
           resizeMode="cover"
         />
       </View>
-      <View style={styles.compactInfo}>
-        <Text style={styles.compactName} numberOfLines={2}>
+      <View style={{ padding: 12 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8, minHeight: 40 }} numberOfLines={2}>
           {product.name || 'Product Name'}
         </Text>
-        <View style={styles.compactPriceRow}>
-          <Text style={styles.compactPrice}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
             ₹{(finalPrice || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </Text>
           {hasDiscount && originalPrice > 0 && (
-            <Text style={styles.compactOriginalPrice}>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, textDecorationLine: 'line-through' }}>
               ₹{(originalPrice || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </Text>
           )}
@@ -106,6 +108,7 @@ const ProductDetailScreen = () => {
   
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -174,7 +177,7 @@ const ProductDetailScreen = () => {
             foundData = response;
           }
         } catch (err) {
-          console.warn("Direct category fetch failed, trying fallback...");
+          // Silently continue to fallback - 404s are expected when product doesn't exist in that category
         }
       }
 
@@ -200,7 +203,7 @@ const ProductDetailScreen = () => {
               break;
             }
           } catch (e) {
-            // continue
+            // Silently continue - 404s are expected when product doesn't exist in that category
           }
         }
       }
@@ -217,10 +220,14 @@ const ProductDetailScreen = () => {
         fetchSaleProducts(productData);
         fetchReviews(productData);
       } else {
-        throw new Error('Product not found in any category');
+        // Product not found - this is expected for invalid/deleted products
+        setProduct(null);
       }
     } catch (error) {
-      console.error('Error fetching product:', error);
+      // Only log unexpected errors (not 404s)
+      if (error.message && !error.message.includes('404') && !error.message.includes('not found')) {
+        console.error('Unexpected error fetching product:', error);
+      }
       setProduct(null);
     } finally {
       setLoading(false);
@@ -639,21 +646,53 @@ const ProductDetailScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000" />
-        <Text style={styles.loadingText}>Loading product...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundSecondary }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading product...</Text>
       </View>
     );
   }
 
   if (!product) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Product Not Found</Text>
-        <Text style={styles.errorText}>The product you are looking for doesn't exist.</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: colors.backgroundTertiary }}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
+            <Ionicons name="alert-circle-outline" size={64} color={colors.textTertiary} />
+          </View>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 12, textAlign: 'center' }}>Product Not Found</Text>
+          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginBottom: 32, lineHeight: 22, paddingHorizontal: 20 }}>
+            The product you're looking for doesn't exist or may have been removed.
+          </Text>
+          <View style={{ gap: 12, width: '100%', maxWidth: 300 }}>
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()} 
+              style={{ backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }} 
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
+              <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Home')} 
+              style={{ backgroundColor: colors.backgroundTertiary, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }} 
+              activeOpacity={0.8}
+            >
+              <Ionicons name="home" size={20} color={colors.text} />
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Go to Home</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   }
@@ -665,23 +704,23 @@ const ProductDetailScreen = () => {
   const discountPercent = hasDiscount ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100) : 0;
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView className="bg-white" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#111827" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.text, marginHorizontal: 12 }} numberOfLines={1}>
             {product.name || 'Product Details'}
           </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+          <View style={{ width: 40 }} />
+        </View>
       </SafeAreaView>
       
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Image Carousel */}
-      <View style={styles.imageContainer}>
+      <View style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH, backgroundColor: colors.backgroundTertiary, position: 'relative' }}>
         <ScrollView
           ref={imageCarouselRef}
           horizontal
@@ -696,7 +735,7 @@ const ProductDetailScreen = () => {
             <Image
               key={index}
               source={{ uri: image }}
-              style={styles.productImage}
+              style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
               resizeMode="contain"
             />
           ))}
@@ -707,26 +746,30 @@ const ProductDetailScreen = () => {
           <>
             <TouchableOpacity
               onPress={handlePrevImage}
-              style={styles.imageNavButton}
+              style={{ position: 'absolute', left: 16, top: '50%', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card + 'E6', justifyContent: 'center', alignItems: 'center', zIndex: 10, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 }}
+              activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={20} color="#111827" />
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleNextImage}
-              style={[styles.imageNavButton, styles.imageNavButtonRight]}
+              style={{ position: 'absolute', right: 16, top: '50%', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card + 'E6', justifyContent: 'center', alignItems: 'center', zIndex: 10, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 }}
+              activeOpacity={0.7}
             >
-              <Ionicons name="chevron-forward" size={20} color="#111827" />
+              <Ionicons name="chevron-forward" size={20} color={colors.text} />
             </TouchableOpacity>
             
             {/* Image Indicators */}
-            <View style={styles.imageIndicators}>
+            <View style={{ position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
               {productImages.map((_, index) => (
                 <View
                   key={index}
-                  style={[
-                    styles.indicator,
-                    index === selectedImageIndex && styles.indicatorActive
-                  ]}
+                  style={{
+                    width: index === selectedImageIndex ? 24 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: index === selectedImageIndex ? colors.card : colors.card + '80',
+                  }}
                 />
               ))}
             </View>
@@ -734,54 +777,60 @@ const ProductDetailScreen = () => {
         )}
 
         {/* Badges */}
-        <View style={styles.badgesContainer}>
+        <View style={{ position: 'absolute', top: 12, left: 12, flexDirection: 'row', gap: 8 }}>
           {hasDiscount && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountBadgeText}>{discountPercent}% OFF</Text>
+            <View style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+              <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{discountPercent}% OFF</Text>
             </View>
           )}
-          <View style={styles.bestSellerBadge}>
-            <Text style={styles.bestSellerText}>BEST SELLER</Text>
+          <View style={{ backgroundColor: colors.card + 'E6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+            <Text style={{ color: colors.text, fontSize: 10, fontWeight: '700' }}>BEST SELLER</Text>
           </View>
         </View>
       </View>
 
       {/* Product Info */}
-      <View style={styles.infoContainer}>
+      <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: colors.background }}>
         {/* Brand & Title */}
         {product.brand && (
-          <Text style={styles.brand}>{product.brand}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{product.brand}</Text>
         )}
-        <Text style={styles.productName}>{product.name}</Text>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 12 }}>{product.name}</Text>
 
         {/* Price */}
-        <View style={styles.priceContainer}>
-          <Text style={styles.price}>₹{finalPrice.toLocaleString()}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>₹{finalPrice.toLocaleString()}</Text>
           {hasDiscount && (
             <>
-              <Text style={styles.originalPrice}>₹{originalPrice.toLocaleString()}</Text>
+              <Text style={{ fontSize: 18, color: colors.textTertiary, textDecorationLine: 'line-through' }}>₹{originalPrice.toLocaleString()}</Text>
             </>
           )}
         </View>
 
         {/* Size Selection */}
         {product.sizes && product.sizes.length > 0 && (
-          <View style={styles.selectionContainer}>
-            <Text style={styles.selectionLabel}>Select Size</Text>
-            <View style={styles.sizesContainer}>
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Select Size</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {product.sizes.map((size) => (
                 <TouchableOpacity
                   key={size}
                   onPress={() => setSelectedSize(size)}
-                  style={[
-                    styles.sizeButton,
-                    selectedSize === size && styles.sizeButtonActive
-                  ]}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: selectedSize === size ? colors.primary : colors.border,
+                    backgroundColor: selectedSize === size ? colors.primary : colors.card,
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[
-                    styles.sizeButtonText,
-                    selectedSize === size && styles.sizeButtonTextActive
-                  ]}>
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: selectedSize === size ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                  }}>
                     {size}
                   </Text>
                 </TouchableOpacity>
@@ -792,23 +841,29 @@ const ProductDetailScreen = () => {
 
         {/* Color Selection */}
         {(product.colors?.length > 0 || product.color) && (
-          <View style={styles.selectionContainer}>
-            <Text style={styles.selectionLabel}>Select Color</Text>
-            <View style={styles.colorsContainer}>
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Select Color</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
               {(product.colors || [product.color || '#000000']).slice(0, 6).map((color, idx) => {
                 const isSelected = selectedColor === color || (!selectedColor && idx === 0);
                 return (
                   <TouchableOpacity
                     key={idx}
                     onPress={() => setSelectedColor(color)}
-                    style={[
-                      styles.colorButton,
-                      isSelected && styles.colorButtonActive,
-                      { backgroundColor: color }
-                    ]}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: color,
+                      borderWidth: isSelected ? 3 : 2,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.7}
                   >
                     {isSelected && (
-                      <Text style={styles.colorCheckmark}>✓</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700' }}>✓</Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -818,61 +873,63 @@ const ProductDetailScreen = () => {
         )}
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
           <TouchableOpacity
             onPress={handleAddToCart}
-            style={styles.addToCartButton}
+            style={{ flex: 1, paddingVertical: 16, backgroundColor: colors.backgroundTertiary, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}
+            activeOpacity={0.8}
           >
-            <Text style={styles.addToCartText}>Add to Cart</Text>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Add to Cart</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleBuyNow}
-            style={styles.buyNowButton}
+            style={{ flex: 1, paddingVertical: 16, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center' }}
+            activeOpacity={0.8}
           >
-            <Text style={styles.buyNowText}>Buy Now</Text>
+            <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Buy Now</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Info */}
-        <View style={styles.quickInfo}>
-          <View style={styles.quickInfoCard}>
-            <Text style={styles.quickInfoIcon}>✓</Text>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+          <View style={{ flex: 1, backgroundColor: colors.backgroundTertiary, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }}>
+            <Text style={{ fontSize: 20, color: colors.success }}>✓</Text>
             <View>
-              <Text style={styles.quickInfoTitle}>Free Shipping</Text>
-              <Text style={styles.quickInfoSubtitle}>On orders over ₹1,000</Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 }}>Free Shipping</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>On orders over ₹1,000</Text>
             </View>
           </View>
-          <View style={styles.quickInfoCard}>
-            <Text style={styles.quickInfoIcon}>↻</Text>
+          <View style={{ flex: 1, backgroundColor: colors.backgroundTertiary, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }}>
+            <Text style={{ fontSize: 20, color: colors.success }}>↻</Text>
             <View>
-              <Text style={styles.quickInfoTitle}>Easy Returns</Text>
-              <Text style={styles.quickInfoSubtitle}>30 days return policy</Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 }}>Easy Returns</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>30 days return policy</Text>
             </View>
           </View>
         </View>
 
         {/* Reviews Summary */}
         {reviewStats && reviewStats.averageRating && (
-          <View style={styles.reviewsSummary}>
-            <View style={styles.reviewsSummaryHeader}>
+          <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 16, marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
               <View>
-                <Text style={styles.reviewsRating}>{reviewStats.averageRating.toFixed(1)}</Text>
-                <View style={styles.starsContainer}>
+                <Text style={{ fontSize: 32, fontWeight: '700', color: colors.text }}>{reviewStats.averageRating.toFixed(1)}</Text>
+                <View style={{ flexDirection: 'row', gap: 2, marginTop: 4 }}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Text
                       key={star}
-                      style={[
-                        styles.star,
-                        star <= Math.round(reviewStats.averageRating) && styles.starActive
-                      ]}
+                      style={{
+                        fontSize: 16,
+                        color: star <= Math.round(reviewStats.averageRating) ? '#FBBF24' : colors.textTertiary,
+                      }}
                     >
                       ★
                     </Text>
                   ))}
                 </View>
               </View>
-              <View style={styles.reviewsStats}>
-                <Text style={styles.reviewsCount}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 8 }}>
                   Based on {reviewStats.totalReviews} reviews
                 </Text>
               </View>
@@ -881,59 +938,61 @@ const ProductDetailScreen = () => {
         )}
 
         {/* Product Details */}
-        <View style={styles.detailsSection}>
-          <Text style={styles.sectionTitle}>Product Details</Text>
-          <Text style={styles.description}>
+        <View style={{ marginBottom: 24, paddingHorizontal: 16 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Product Details</Text>
+          <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 16 }}>
             {product.description || product.productDetails?.description || 'Premium quality product designed for comfort and style.'}
           </Text>
-          <View style={styles.detailsList}>
+          <View style={{ gap: 12 }}>
             {product.brand && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Brand:</Text>
-                <Text style={styles.detailValue}>{product.brand}</Text>
+              <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, width: 80 }}>Brand:</Text>
+                <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{product.brand}</Text>
               </View>
             )}
             {product.productDetails?.fabric && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Fabric:</Text>
-                <Text style={styles.detailValue}>{product.productDetails.fabric}</Text>
+              <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, width: 80 }}>Fabric:</Text>
+                <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{product.productDetails.fabric}</Text>
               </View>
             )}
             {product.color && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Color:</Text>
-                <Text style={styles.detailValue}>{product.color}</Text>
+              <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, width: 80 }}>Color:</Text>
+                <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{product.color}</Text>
               </View>
             )}
           </View>
         </View>
 
         {/* Shipping & Returns */}
-        <View style={styles.shippingSection}>
-          <Text style={styles.sectionTitle}>Shipping & Returns</Text>
-          <View style={styles.shippingItem}>
-            <Text style={styles.shippingIcon}>✓</Text>
-            <View>
-              <Text style={styles.shippingTitle}>Free Shipping</Text>
-              <Text style={styles.shippingText}>On orders over ₹1,000. Standard delivery in 5-7 business days.</Text>
+        <View style={{ marginBottom: 24, paddingHorizontal: 16 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Shipping & Returns</Text>
+          <View style={{ gap: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Text style={{ fontSize: 20, color: colors.success }}>✓</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>Free Shipping</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>On orders over ₹1,000. Standard delivery in 5-7 business days.</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.shippingItem}>
-            <Text style={styles.shippingIcon}>↻</Text>
-            <View>
-              <Text style={styles.shippingTitle}>5-Day Returns</Text>
-              <Text style={styles.shippingText}>Easy returns within 30 days of purchase.</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Text style={{ fontSize: 20, color: colors.success }}>↻</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>5-Day Returns</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>Easy returns within 30 days of purchase.</Text>
+              </View>
             </View>
           </View>
         </View>
 
         {/* Recommended Products */}
         {recommendedProducts.length > 0 && (
-          <View style={styles.relatedSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>You may also like</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: category || 'all' })}>
-                <Text style={styles.viewAllText}>View All</Text>
+          <View style={{ marginBottom: 24, backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>You may also like</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: category || 'all' })} activeOpacity={0.7}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>View All</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -942,18 +1001,18 @@ const ProductDetailScreen = () => {
               keyExtractor={(item) => item.id || item._id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.relatedList}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}
             />
           </View>
         )}
 
         {/* Sale Products */}
         {saleProducts.length > 0 && (
-          <View style={styles.relatedSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>On Sale</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Sale')}>
-                <Text style={styles.viewAllText}>View All</Text>
+          <View style={{ marginBottom: 24, backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>On Sale</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Sale')} activeOpacity={0.7}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>View All</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -962,18 +1021,18 @@ const ProductDetailScreen = () => {
               keyExtractor={(item) => item.id || item._id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.relatedList}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}
             />
           </View>
         )}
 
         {/* Trending Products */}
         {trendingProducts.length > 0 && (
-          <View style={styles.relatedSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Trending Now</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'all' })}>
-                <Text style={styles.viewAllText}>View All</Text>
+          <View style={{ marginBottom: 24, backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>Trending Now</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'all' })} activeOpacity={0.7}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>View All</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -982,23 +1041,24 @@ const ProductDetailScreen = () => {
               keyExtractor={(item) => item.id || item._id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.relatedList}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}
             />
           </View>
         )}
 
         {/* Reviews Section */}
-        <View style={styles.reviewsSection}>
-          <View style={styles.reviewsHeader}>
-            <Text style={styles.sectionTitle}>
+        <View style={{ marginBottom: 24, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>
               Customer Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
             </Text>
             {isAuthenticated && !showReviewForm && (
               <TouchableOpacity
                 onPress={() => setShowReviewForm(true)}
-                style={styles.writeReviewButton}
+                style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.primary, borderRadius: 8 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.writeReviewText}>Write Review</Text>
+                <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Write Review</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1010,29 +1070,30 @@ const ProductDetailScreen = () => {
             transparent
             onRequestClose={() => setShowReviewForm(false)}
           >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Write a Review</Text>
-                  <TouchableOpacity onPress={() => setShowReviewForm(false)}>
-                    <Ionicons name="close" size={24} color="#6b7280" />
+            <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' }}>
+              <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Write a Review</Text>
+                  <TouchableOpacity onPress={() => setShowReviewForm(false)} activeOpacity={0.7}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView style={styles.modalBody}>
+                <ScrollView style={{ padding: 16, maxHeight: 400 }}>
                   {/* Star Rating */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.formLabel}>Rating *</Text>
-                    <View style={styles.starsInput}>
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 }}>Rating *</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
                       {[1, 2, 3, 4, 5].map((star) => (
                         <TouchableOpacity
                           key={star}
                           onPress={() => setReviewForm({ ...reviewForm, rating: star })}
+                          activeOpacity={0.7}
                         >
-                          <Text style={[
-                            styles.starInput,
-                            star <= reviewForm.rating && styles.starInputActive
-                          ]}>
+                          <Text style={{
+                            fontSize: 32,
+                            color: star <= reviewForm.rating ? '#FBBF24' : colors.textTertiary,
+                          }}>
                             ★
                           </Text>
                         </TouchableOpacity>
@@ -1041,51 +1102,55 @@ const ProductDetailScreen = () => {
                   </View>
 
                   {/* Review Title */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.formLabel}>Review Title *</Text>
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 }}>Review Title *</Text>
                     <TextInput
                       value={reviewForm.title}
                       onChangeText={(text) => setReviewForm({ ...reviewForm, title: text })}
                       placeholder="Give your review a title"
-                      style={styles.formInput}
+                      placeholderTextColor={colors.textTertiary}
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, backgroundColor: colors.card }}
                       maxLength={200}
                     />
                   </View>
 
                   {/* Review Comment */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.formLabel}>Your Review *</Text>
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 }}>Your Review *</Text>
                     <TextInput
                       value={reviewForm.comment}
                       onChangeText={(text) => setReviewForm({ ...reviewForm, comment: text })}
                       placeholder="Share your experience"
+                      placeholderTextColor={colors.textTertiary}
                       multiline
                       numberOfLines={5}
-                      style={[styles.formInput, styles.formTextArea]}
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, backgroundColor: colors.card, minHeight: 100, textAlignVertical: 'top' }}
                       maxLength={2000}
                     />
-                    <Text style={styles.charCount}>
+                    <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 4, textAlign: 'right' }}>
                       {reviewForm.comment.length}/2000
                     </Text>
                   </View>
                 </ScrollView>
 
-                <View style={styles.modalFooter}>
+                <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
                   <TouchableOpacity
                     onPress={() => {
                       setShowReviewForm(false);
                       setReviewForm({ rating: 0, title: '', comment: '' });
                     }}
-                    style={styles.cancelButton}
+                    style={{ flex: 1, paddingVertical: 12, backgroundColor: colors.backgroundTertiary, borderRadius: 8, alignItems: 'center' }}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleReviewSubmit}
                     disabled={submittingReview}
-                    style={styles.submitButton}
+                    style={{ flex: 1, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.6 : 1 }}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.submitButtonText}>
+                    <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
                       {submittingReview ? 'Submitting...' : 'Submit Review'}
                     </Text>
                   </TouchableOpacity>
@@ -1096,27 +1161,27 @@ const ProductDetailScreen = () => {
 
           {/* Reviews List */}
           {loadingReviews ? (
-            <ActivityIndicator size="small" color="#000" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : reviews.length > 0 ? (
-            <View style={styles.reviewsList}>
+            <View style={{ gap: 16 }}>
               {reviews.map((review) => (
-                <View key={review._id} style={styles.reviewItem}>
-                  <View style={styles.reviewHeader}>
-                    <View style={styles.reviewAvatar}>
-                      <Text style={styles.reviewAvatarText}>
+                <View key={review._id} style={{ backgroundColor: colors.card, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                  <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
                         {(review.userName || 'A')[0].toUpperCase()}
                       </Text>
                     </View>
-                    <View style={styles.reviewInfo}>
-                      <Text style={styles.reviewName}>{review.userName || 'Anonymous'}</Text>
-                      <View style={styles.reviewStars}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>{review.userName || 'Anonymous'}</Text>
+                      <View style={{ flexDirection: 'row', gap: 2 }}>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Text
                             key={star}
-                            style={[
-                              styles.reviewStar,
-                              star <= review.rating && styles.reviewStarActive
-                            ]}
+                            style={{
+                              fontSize: 14,
+                              color: star <= review.rating ? '#FBBF24' : colors.textTertiary,
+                            }}
                           >
                             ★
                           </Text>
@@ -1124,13 +1189,14 @@ const ProductDetailScreen = () => {
                       </View>
                     </View>
                   </View>
-                  <Text style={styles.reviewTitle}>{review.title}</Text>
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 8 }}>{review.title}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 12 }}>{review.comment}</Text>
                   <TouchableOpacity
                     onPress={() => handleMarkHelpful(review._id)}
-                    style={styles.helpfulButton}
+                    style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.backgroundTertiary, borderRadius: 6 }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.helpfulText}>
+                    <Text style={{ fontSize: 12, color: colors.text }}>
                       Helpful ({review.helpful || 0})
                     </Text>
                   </TouchableOpacity>
@@ -1138,7 +1204,7 @@ const ProductDetailScreen = () => {
               ))}
             </View>
           ) : (
-            <Text style={styles.noReviewsText}>No reviews yet. Be the first to review!</Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 }}>No reviews yet. Be the first to review!</Text>
           )}
         </View>
       </View>

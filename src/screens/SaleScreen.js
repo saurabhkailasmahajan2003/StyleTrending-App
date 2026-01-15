@@ -122,9 +122,9 @@ const SaleScreen = () => {
   const renderFooter = () => {
     if (!isLoadingMore) return null;
     return (
-      <View className="py-5 items-center">
-        <ActivityIndicator size="small" color="#000" />
-        <Text className="mt-2 text-xs text-gray-500">Loading more...</Text>
+      <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={{ marginTop: 8, fontSize: 12, color: colors.textSecondary }}>Loading more...</Text>
       </View>
     );
   };
@@ -133,38 +133,38 @@ const SaleScreen = () => {
   const renderEmpty = () => {
     if (isLoading) {
       return (
-        <View className="py-15 items-center">
-          <ActivityIndicator size="large" color="#000" />
-          <Text className="text-base text-gray-500">Loading products...</Text>
+        <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ fontSize: 16, color: colors.textSecondary, marginTop: 16 }}>Loading products...</Text>
         </View>
       );
     }
 
     return (
-      <View className="py-15 items-center">
-        <Ionicons name="pricetag-outline" size={64} color="#d1d5db" />
-        <Text className="text-base text-gray-500 mb-2 mt-4">No sale products found</Text>
-        <Text className="text-sm text-gray-400">Check back later for amazing deals!</Text>
+      <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+        <Ionicons name="pricetag-outline" size={64} color={colors.textTertiary} />
+        <Text style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 8, marginTop: 16 }}>No sale products found</Text>
+        <Text style={{ fontSize: 14, color: colors.textTertiary }}>Check back later for amazing deals!</Text>
       </View>
     );
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <SafeAreaView className="bg-white" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+      <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
         {/* Header */}
-        <View className="flex-row items-center justify-between py-3 bg-white border-b border-gray-200" style={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 justify-center items-center">
-            <Ionicons name="chevron-back" size={24} color="#111827" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="flex-1 text-lg font-bold text-gray-900 mx-3" numberOfLines={1}>On Sale</Text>
-          <View className="w-10" />
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.text, marginHorizontal: 12 }} numberOfLines={1}>On Sale</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         {/* Product Count */}
         {!isLoading && allProducts.length > 0 && (
-          <View className="py-2 bg-white" style={{ paddingHorizontal: 16 }}>
-            <Text className="text-sm text-gray-500">
+          <View style={{ paddingVertical: 8, backgroundColor: colors.background, paddingHorizontal: 16 }}>
+            <Text style={{ fontSize: 14, color: colors.textSecondary }}>
               {allProducts.length} {allProducts.length === 1 ? 'product' : 'products'} on sale
             </Text>
           </View>

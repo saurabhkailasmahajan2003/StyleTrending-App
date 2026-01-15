@@ -18,9 +18,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { productAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { useTheme } from '../context/ThemeContext';
 import BottomNavBar from '../components/BottomNavBar';
 
 const ITEMS_PER_PAGE = 20; // Items to load per infinite scroll batch
@@ -81,6 +82,7 @@ const categories = [
 const CategoryScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const { colors, isDark } = useTheme();
   
   // Get params from navigation
   const { category, subcategory, title, gender } = route.params || {};
@@ -110,6 +112,7 @@ const CategoryScreen = () => {
   const [categoryLayouts, setCategoryLayouts] = useState({});
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const isAnimating = useRef(false);
+  const flatListRef = useRef(null);
   
   // Animation values for dropdown
   const dropdownOpacity = useRef(new Animated.Value(0)).current;
@@ -317,18 +320,27 @@ const CategoryScreen = () => {
           products = response;
         }
         
-        console.log(`[Fetch] Setting ${products.length} products to allProducts`);
+        console.log(`[Fetch] Category: ${categoryType}, Setting ${products.length} products to allProducts`);
         console.log(`[Fetch] Response structure:`, {
+          categoryType,
+          activeGender,
+          activeCategory,
           hasData: !!response.data,
           dataIsArray: Array.isArray(response.data),
           hasProducts: !!response.data?.products,
-          productsIsArray: Array.isArray(response.data?.products)
+          productsIsArray: Array.isArray(response.data?.products),
+          productsLength: products.length,
+          firstProduct: products[0] ? { name: products[0].name, category: products[0].category, gender: products[0].gender } : null
         });
         setAllProducts(products);
       } else {
         console.log('[Fetch] No response or response not successful', {
+          categoryType,
+          activeGender,
+          activeCategory,
           hasResponse: !!response,
-          isSuccess: response?.success
+          isSuccess: response?.success,
+          responseData: response?.data
         });
         setAllProducts([]);
       }
@@ -359,18 +371,50 @@ const CategoryScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryType, activeGender, activeCategory]);
 
+  // Handle scroll to top when tab is pressed
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.scrollToTop && flatListRef.current) {
+        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        // Clear the param to prevent scrolling on every focus
+        navigation.setParams({ scrollToTop: undefined });
+      }
+    }, [route.params?.scrollToTop, navigation])
+  );
+
   // 2. Filter Logic (Preserved from web)
   useEffect(() => {
-    // Don't filter if still loading
+    // Don't filter if still loading or no products
     if (isLoading) {
       console.log('[Client Filter] Skipping filter - still loading');
       return;
     }
     
+    // If no products, clear everything
+    if (!allProducts || allProducts.length === 0) {
+      console.log('[Client Filter] No products to filter');
+      setFilteredList([]);
+      setDisplayedProducts([]);
+      setHasMore(false);
+      return;
+    }
+    
     let filtered = [...allProducts];
-    console.log(`[Client Filter] Starting with ${allProducts.length} products for ${activeGender}/${activeCategory}`);
+    console.log(`[Client Filter] Starting with ${allProducts.length} products for categoryType: ${categoryType}, activeGender: ${activeGender}, activeCategory: ${activeCategory}`);
+    
+    // Debug: Log first few products to see their structure
+    if (filtered.length > 0 && categoryType === 'women') {
+      console.log(`[Client Filter] Sample women products:`, filtered.slice(0, 3).map(p => ({
+        name: p.name,
+        category: p.category,
+        subCategory: p.subCategory,
+        gender: p.gender,
+        id: p._id || p.id
+      })));
+    }
 
-    // Subcategory Filtering
+    // Subcategory Filtering - only apply when both gender and subcategory are specified
+    // When viewing main category (e.g., just "women" without subcategory), show all products
     if (activeGender && activeCategory) {
       const categoryMap = {
         'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
@@ -420,8 +464,15 @@ const CategoryScreen = () => {
             return true;
           }
           
-          // Priority 2: Exact match in category
-          if (productCategory === expectedSubCategory) {
+          // Priority 2: Exact match in category (but only if category is not 'women' or 'men')
+          // For women/men products, category is always 'women'/'men', so we should check subCategory
+          if (productCategory === expectedSubCategory && productCategory !== 'women' && productCategory !== 'men') {
+            return true;
+          }
+          
+          // Priority 2b: For women/men products, ensure we're checking subCategory correctly
+          // The schema has category='women' and subCategory='shirt'/'tshirt'/'jeans'/'trousers'
+          if ((productCategory === 'women' || productCategory === 'men') && productSubCategory === expectedSubCategory) {
             return true;
           }
           
@@ -484,6 +535,13 @@ const CategoryScreen = () => {
           }
           
           // For other categories, use strict matching with fallback to includes
+          // But for women/men products, only check subCategory (category is always 'women'/'men')
+          if (productCategory === 'women' || productCategory === 'men') {
+            // For women/men products, only match on subCategory
+            return productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
+          }
+          
+          // For other product types, check both category and subCategory
           const matchesSubCategory = productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
           const matchesCategory = productCategory === expectedSubCategory || productCategory.includes(expectedSubCategory);
           
@@ -541,11 +599,14 @@ const CategoryScreen = () => {
     }
 
     console.log(`[Client Filter] Final filtered count: ${filtered.length} products`);
+    console.log(`[Client Filter] Setting filteredList and displayedProducts`);
     setFilteredList(filtered);
     const initialDisplay = filtered.slice(0, ITEMS_PER_PAGE);
+    console.log(`[Client Filter] Initial display: ${initialDisplay.length} products`);
     setDisplayedProducts(initialDisplay);
     setHasMore(filtered.length > ITEMS_PER_PAGE);
     console.log(`[Client Filter] Displaying ${initialDisplay.length} products initially, hasMore: ${filtered.length > ITEMS_PER_PAGE}`);
+    console.log(`[Client Filter] Sample product:`, initialDisplay[0] ? { name: initialDisplay[0].name, id: initialDisplay[0]._id || initialDisplay[0].id } : 'none');
   }, [allProducts, filters, activeGender, activeCategory, isLoading]);
 
   // 3. Infinite Scroll Logic
@@ -641,9 +702,9 @@ const CategoryScreen = () => {
   const renderFooter = () => {
     if (!isLoadingMore) return null;
     return (
-      <View className="py-5 items-center">
-        <ActivityIndicator size="small" color="#000" />
-        <Text className="mt-2 text-xs text-gray-500">Loading more...</Text>
+      <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={{ marginTop: 8, fontSize: 12, color: colors.textSecondary }}>Loading more...</Text>
       </View>
     );
   };
@@ -652,19 +713,19 @@ const CategoryScreen = () => {
   const renderEmpty = () => {
     if (isLoading) {
       return (
-        <View className="py-15 items-center">
-          <ActivityIndicator size="large" color="#000" />
-          <Text className="text-base text-gray-500">Loading products...</Text>
+        <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ fontSize: 16, color: colors.textSecondary, marginTop: 16 }}>Loading products...</Text>
         </View>
       );
     }
 
     return (
-      <View className="py-15 items-center">
-        <Text className="text-base text-gray-500 mb-4">No products found</Text>
+      <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+        <Text style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 16 }}>No products found</Text>
         {(filters.priceRange || filters.brands?.length > 0 || filters.sizes?.length > 0) && (
-          <TouchableOpacity onPress={handleClearFilters} className="px-5 py-2.5 bg-gray-900 rounded-lg">
-            <Text className="text-white text-sm font-semibold">Clear filters</Text>
+          <TouchableOpacity onPress={handleClearFilters} style={{ paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primary, borderRadius: 8 }} activeOpacity={0.8}>
+            <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Clear filters</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -780,26 +841,25 @@ const CategoryScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <SafeAreaView className="bg-white" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
         {/* Header */}
-        <View className="flex-row items-center justify-between py-3 bg-white border-b border-gray-200" style={{ paddingHorizontal: 16 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 justify-center items-center">
-          <Ionicons name="chevron-back" size={24} color="#111827" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text className="flex-1 text-lg font-bold text-gray-900 mx-3" numberOfLines={1}>{pageTitle}</Text>
-        <TouchableOpacity onPress={() => setShowFilters(true)} className="px-3 py-1.5">
-          <Text className="text-sm font-semibold text-gray-900">Filter</Text>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.text, marginHorizontal: 12 }} numberOfLines={1}>{pageTitle}</Text>
+        <TouchableOpacity onPress={() => setShowFilters(true)} style={{ paddingHorizontal: 12, paddingVertical: 6 }} activeOpacity={0.7}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Filter</Text>
         </TouchableOpacity>
       </View>
 
       {/* Category Filter Bar */}
-      <View className="bg-white border-b border-gray-200" style={{ position: 'relative', zIndex: 100 }}>
+      <View style={{ backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12, gap: 8 }}
-          style={{ position: 'relative' }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 14 }}
           nestedScrollEnabled={true}
         >
           {categories.map((cat) => {
@@ -810,6 +870,7 @@ const CategoryScreen = () => {
             return (
               <View 
                 key={cat.id} 
+                style={{ marginRight: 10 }}
                 onLayout={(event) => {
                   const { x, y, width, height } = event.nativeEvent.layout;
                   setCategoryLayouts(prev => ({
@@ -820,24 +881,37 @@ const CategoryScreen = () => {
               >
                 <TouchableOpacity
                   onPress={() => handleCategoryPress(cat)}
-                  className={`flex-row items-center px-4 py-2 rounded-full border ${
-                    isActive 
-                      ? 'bg-black border-black' 
-                      : 'bg-white border-gray-300'
-                  }`}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 18,
+                    paddingVertical: 10,
+                    borderRadius: 24,
+                    borderWidth: 2,
+                    borderColor: isActive ? colors.primary : colors.border,
+                    backgroundColor: isActive ? colors.primary : colors.backgroundTertiary,
+                    shadowColor: isActive ? colors.primary : 'transparent',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isActive ? 0.2 : 0,
+                    shadowRadius: 4,
+                    elevation: isActive ? 3 : 0,
+                  }}
                   activeOpacity={0.7}
                 >
-                  <Text className={`text-sm font-semibold ${
-                    isActive ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: isActive ? '700' : '600',
+                    color: isActive ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                    letterSpacing: 0.3,
+                  }}>
                     {cat.label}
                   </Text>
                   {hasSubItems && (
                     <Ionicons 
                       name={isExpanded ? "chevron-up" : "chevron-down"} 
                       size={16} 
-                      color={isActive ? "#fff" : "#6b7280"}
-                      style={{ marginLeft: 4 }}
+                      color={isActive ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary}
+                      style={{ marginLeft: 6 }}
                     />
                   )}
                 </TouchableOpacity>
@@ -849,9 +923,9 @@ const CategoryScreen = () => {
       
       {/* Product Count */}
       {!isLoading && filteredList.length > 0 && (
-        <View className="py-2 bg-white" style={{ paddingHorizontal: 16 }}>
-          <Text className="text-sm text-gray-500">
-            {filteredList.length} {filteredList.length === 1 ? 'product' : 'products'}
+        <View style={{ paddingVertical: 10, backgroundColor: colors.background, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+          <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>
+            {filteredList.length} {filteredList.length === 1 ? 'product' : 'products'} found
           </Text>
         </View>
       )}
@@ -878,11 +952,11 @@ const CategoryScreen = () => {
           >
             <View
               style={{
-                backgroundColor: 'white',
+                backgroundColor: colors.card,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: '#e5e7eb',
-                shadowColor: '#000',
+                borderColor: colors.border,
+                shadowColor: colors.shadow,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 8,
@@ -904,11 +978,11 @@ const CategoryScreen = () => {
                   paddingHorizontal: 16,
                   paddingVertical: 12,
                   borderBottomWidth: 1,
-                  borderBottomColor: '#f3f4f6',
+                  borderBottomColor: colors.borderLight,
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
                   Shop All {cat.label}
                 </Text>
               </TouchableOpacity>
@@ -920,11 +994,11 @@ const CategoryScreen = () => {
                     paddingHorizontal: 16,
                     paddingVertical: 12,
                     borderBottomWidth: idx < cat.subItems.length - 1 ? 1 : 0,
-                    borderBottomColor: '#f3f4f6',
+                    borderBottomColor: colors.borderLight,
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 14, color: '#374151' }}>{subItem.name}</Text>
+                  <Text style={{ fontSize: 14, color: colors.text }}>{subItem.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -932,8 +1006,42 @@ const CategoryScreen = () => {
         );
       })()}
       
+      {/* Products FlatList */}
+      <FlatList
+        ref={flatListRef}
+        key={`${categoryType}-${activeGender}-${activeCategory}-${displayedProducts.length}`}
+        data={displayedProducts}
+        renderItem={renderProduct}
+        keyExtractor={keyExtractor}
+        numColumns={2}
+        contentContainerStyle={{ 
+          paddingHorizontal: 16, 
+          paddingTop: 16, 
+          paddingBottom: 120, 
+          backgroundColor: colors.background,
+          flexGrow: 1,
+        }}
+        columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
+        style={{ flex: 1, backgroundColor: colors.background, zIndex: 1 }}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        onScrollBeginDrag={() => expandedCategory && setExpandedCategory(null)}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmpty}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        removeClippedSubviews={false}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+        extraData={displayedProducts}
+        showsVerticalScrollIndicator={false}
+      />
+
       {/* Overlay to close dropdown when clicking outside - with animation */}
-      {isDropdownVisible && (
+      {isDropdownVisible && expandedCategory && (
         <Animated.View
           style={{ 
             position: 'absolute',
@@ -941,11 +1049,11 @@ const CategoryScreen = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.1)',
-            zIndex: 999,
+            backgroundColor: colors.overlay || 'rgba(0, 0, 0, 0.3)',
+            zIndex: 998,
             opacity: overlayOpacity,
           }}
-          pointerEvents={expandedCategory ? 'auto' : 'none'}
+          pointerEvents="auto"
         >
           <TouchableOpacity
             activeOpacity={1}
@@ -954,31 +1062,6 @@ const CategoryScreen = () => {
           />
         </Animated.View>
       )}
-
-      {/* Products FlatList */}
-      <FlatList
-        key={`${categoryType}-${activeGender}-${activeCategory}`}
-        data={displayedProducts}
-        renderItem={renderProduct}
-        keyExtractor={keyExtractor}
-        numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 100 }}
-        columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 4 }}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        onScrollBeginDrag={() => expandedCategory && setExpandedCategory(null)}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        removeClippedSubviews={false}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
-        extraData={displayedProducts.length}
-      />
 
       {/* Filter Modal */}
       <FilterModal
@@ -996,12 +1079,47 @@ const CategoryScreen = () => {
 };
 
 // Filter Modal Component
-const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters, brands, sizes }) => {
+const FilterModal = React.memo(({ visible, onClose, filters, onFilterChange, onClearFilters, brands, sizes }) => {
+  const { colors, isDark } = useTheme();
   const [localFilters, setLocalFilters] = useState(filters);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     setLocalFilters(filters);
   }, [filters]);
+
+  useEffect(() => {
+    if (visible) {
+      // Fast open animation
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 1,
+          duration: 200, // Reduced from default 300ms
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 150, // Fast fade
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Fast close animation
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 150, // Fast close
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100, // Very fast fade out
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
 
   const handleApply = () => {
     onFilterChange(localFilters);
@@ -1034,32 +1152,73 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
     setLocalFilters(prev => ({ ...prev, priceRange: range }));
   };
 
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [600, 0],
+  });
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-white rounded-t-[20px] max-h-[80%]">
-          <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-            <Text className="text-xl font-bold text-gray-900">Filters</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#6b7280" />
+    <Modal 
+      visible={visible} 
+      animationType="none" 
+      transparent
+      onRequestClose={onClose}
+      hardwareAccelerated={true}
+    >
+      <TouchableOpacity 
+        activeOpacity={1} 
+        onPress={onClose}
+        style={{ flex: 1 }}
+      >
+        <Animated.View 
+          style={{ 
+            flex: 1, 
+            backgroundColor: colors.overlay || 'rgba(0, 0, 0, 0.5)', 
+            justifyContent: 'flex-end',
+            opacity: opacityAnim,
+          }}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <Animated.View 
+              style={{ 
+                backgroundColor: colors.card, 
+                borderTopLeftRadius: 20, 
+                borderTopRightRadius: 20, 
+                maxHeight: '80%',
+                transform: [{ translateY }],
+              }}
+            >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Filters</Text>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
             {/* Sort By */}
-            <View className="mb-6">
-              <Text className="text-base font-semibold text-gray-900 mb-3">Sort By</Text>
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Sort By</Text>
               {['default', 'price-low-high', 'price-high-low', 'newest'].map((option) => (
                 <TouchableOpacity
                   key={option}
                   onPress={() => setSortBy(option)}
-                  className={`py-3 px-4 rounded-lg mb-2 border ${
-                    localFilters.sortBy === option
-                      ? 'bg-gray-900 border-gray-900'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: localFilters.sortBy === option ? colors.primary : colors.border,
+                    backgroundColor: localFilters.sortBy === option ? colors.primary : colors.backgroundTertiary,
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <Text className={`text-sm ${localFilters.sortBy === option ? 'text-white font-semibold' : 'text-gray-700'}`}>
+                  <Text style={{
+                    fontSize: 14,
+                    color: localFilters.sortBy === option ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                    fontWeight: localFilters.sortBy === option ? '600' : '400',
+                  }}>
                     {option === 'default' ? 'Price: Low to High' :
                      option === 'price-low-high' ? 'Price: Low to High' :
                      option === 'price-high-low' ? 'Price: High to Low' :
@@ -1070,8 +1229,8 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
             </View>
 
             {/* Price Range */}
-            <View className="mb-6">
-              <Text className="text-base font-semibold text-gray-900 mb-3">Price Range</Text>
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Price Range</Text>
               {[
                 { label: 'Under ₹1,000', min: 0, max: 1000 },
                 { label: '₹1,000 - ₹5,000', min: 1000, max: 5000 },
@@ -1081,13 +1240,22 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
                 <TouchableOpacity
                   key={range.label}
                   onPress={() => setPriceRange(localFilters.priceRange?.min === range.min ? null : range)}
-                  className={`py-3 px-4 rounded-lg mb-2 border ${
-                    localFilters.priceRange?.min === range.min
-                      ? 'bg-gray-900 border-gray-900'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: localFilters.priceRange?.min === range.min ? colors.primary : colors.border,
+                    backgroundColor: localFilters.priceRange?.min === range.min ? colors.primary : colors.backgroundTertiary,
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <Text className={`text-sm ${localFilters.priceRange?.min === range.min ? 'text-white font-semibold' : 'text-gray-700'}`}>
+                  <Text style={{
+                    fontSize: 14,
+                    color: localFilters.priceRange?.min === range.min ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                    fontWeight: localFilters.priceRange?.min === range.min ? '600' : '400',
+                  }}>
                     {range.label}
                   </Text>
                 </TouchableOpacity>
@@ -1096,19 +1264,28 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
 
             {/* Brands */}
             {brands.length > 0 && (
-              <View className="mb-6">
-                <Text className="text-base font-semibold text-gray-900 mb-3">Brands</Text>
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Brands</Text>
                 {brands.map((brand) => (
                   <TouchableOpacity
                     key={brand}
                     onPress={() => toggleBrand(brand)}
-                    className={`py-3 px-4 rounded-lg mb-2 border ${
-                      localFilters.brands.includes(brand)
-                        ? 'bg-gray-900 border-gray-900'
-                        : 'bg-gray-50 border-gray-200'
-                    }`}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: localFilters.brands.includes(brand) ? colors.primary : colors.border,
+                      backgroundColor: localFilters.brands.includes(brand) ? colors.primary : colors.backgroundTertiary,
+                    }}
+                    activeOpacity={0.7}
                   >
-                    <Text className={`text-sm ${localFilters.brands.includes(brand) ? 'text-white font-semibold' : 'text-gray-700'}`}>
+                    <Text style={{
+                      fontSize: 14,
+                      color: localFilters.brands.includes(brand) ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                      fontWeight: localFilters.brands.includes(brand) ? '600' : '400',
+                    }}>
                       {brand}
                     </Text>
                   </TouchableOpacity>
@@ -1118,20 +1295,32 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
 
             {/* Sizes */}
             {sizes.length > 0 && (
-              <View className="mb-6">
-                <Text className="text-base font-semibold text-gray-900 mb-3">Sizes</Text>
-                <View className="flex-row flex-wrap gap-2">
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>Sizes</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                   {sizes.map((size) => (
                     <TouchableOpacity
                       key={size}
                       onPress={() => toggleSize(size)}
-                      className={`w-[60px] h-10 justify-center items-center rounded-lg border ${
-                        localFilters.sizes.includes(size)
-                          ? 'bg-gray-900 border-gray-900'
-                          : 'bg-white border-gray-200'
-                      }`}
+                      style={{
+                        width: 60,
+                        height: 40,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: localFilters.sizes.includes(size) ? colors.primary : colors.border,
+                        backgroundColor: localFilters.sizes.includes(size) ? colors.primary : colors.card,
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <Text className={`text-sm font-semibold ${localFilters.sizes.includes(size) ? 'text-white' : 'text-gray-700'}`}>
+                      <Text style={{
+                        fontSize: 14,
+                        fontWeight: '600',
+                        color: localFilters.sizes.includes(size) ? (isDark ? '#000000' : '#FFFFFF') : colors.text,
+                      }}>
                         {size}
                       </Text>
                     </TouchableOpacity>
@@ -1141,18 +1330,20 @@ const FilterModal = ({ visible, onClose, filters, onFilterChange, onClearFilters
             )}
           </ScrollView>
 
-          <View className="flex-row p-4 border-t border-gray-200 gap-3">
-            <TouchableOpacity onPress={onClearFilters} className="flex-1 py-3.5 bg-gray-100 rounded-lg items-center">
-              <Text className="text-gray-700 text-base font-semibold">Clear All</Text>
+          <View style={{ flexDirection: 'row', padding: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <TouchableOpacity onPress={onClearFilters} style={{ flex: 1, paddingVertical: 14, backgroundColor: colors.backgroundTertiary, borderRadius: 8, alignItems: 'center', marginRight: 12 }} activeOpacity={0.7}>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Clear All</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleApply} className="flex-1 py-3.5 bg-gray-900 rounded-lg items-center">
-              <Text className="text-white text-base font-semibold">Apply Filters</Text>
+            <TouchableOpacity onPress={handleApply} style={{ flex: 1, paddingVertical: 14, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center' }} activeOpacity={0.7}>
+              <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
-};
+});
 
 export default CategoryScreen;

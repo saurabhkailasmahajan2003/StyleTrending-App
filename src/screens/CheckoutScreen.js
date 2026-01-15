@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -17,8 +16,11 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { paymentAPI, profileAPI, orderAPI } from '../services/api';
 import BottomNavBar from '../components/BottomNavBar';
 // Razorpay integration - requires native modules
@@ -34,6 +36,7 @@ const CheckoutScreen = () => {
   const navigation = useNavigation();
   const { cart, getCartTotal, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -312,659 +315,347 @@ const CheckoutScreen = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.backButtonText}>‹</Text>
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.headerTitle}>Checkout</Text>
-            <Text style={styles.headerSubtitle}>
-              {cart.length} {cart.length === 1 ? 'item' : 'items'}
-            </Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        {/* Error Message */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {/* Processing Order Overlay */}
-        {isProcessingOrder && (
-          <View style={styles.processingOverlay}>
-            <View style={styles.processingModal}>
-              <ActivityIndicator size="large" color="#111827" />
-              <Text style={styles.processingTitle}>Placing Your Order</Text>
-              <Text style={styles.processingText}>Please wait while we process your order...</Text>
-              <View style={styles.stepsContainer}>
-                {[1, 2, 3, 4, 5].map((step) => (
-                  <View key={step} style={styles.step}>
-                    <View
-                      style={[
-                        styles.stepIndicator,
-                        processingStep >= step && styles.stepIndicatorActive,
-                      ]}
-                    >
-                      {processingStep > step ? (
-                        <Text style={styles.stepCheck}>✓</Text>
-                      ) : processingStep === step ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : null}
-                    </View>
-                    <Text
-                      style={[
-                        styles.stepText,
-                        processingStep >= step && styles.stepTextActive,
-                      ]}
-                    >
-                      {step === 1 ? 'Validating order' : 
-                       step === 2 ? 'Processing payment' : 
-                       step === 3 ? 'Confirming order' : 
-                       step === 4 ? 'Creating order' : 
-                       step === 5 ? 'Order confirmed' : ''}
-                    </Text>
-                  </View>
-                ))}
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: colors.backgroundTertiary }}
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.text} />
+              </TouchableOpacity>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Checkout</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                  {cart.length} {cart.length === 1 ? 'item' : 'items'}
+                </Text>
               </View>
+              <View style={{ width: 40 }} />
             </View>
-          </View>
-        )}
 
-        {/* Shipping Address Form */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Shipping Address</Text>
-            {addressSaved && (
-              <View style={styles.savedBadge}>
-                <Text style={styles.savedText}>✓ Saved</Text>
+            {/* Error Message */}
+            {error ? (
+              <View style={{ backgroundColor: isDark ? '#7F1D1D' : '#FEF2F2', borderLeftWidth: 4, borderLeftColor: colors.error, padding: 16, margin: 16, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <Text style={{ fontSize: 14, color: colors.error, flex: 1, marginLeft: 12 }}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Processing Order Overlay */}
+            {isProcessingOrder && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 24, width: '90%', maxWidth: 400, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 16, marginBottom: 8 }}>Placing Your Order</Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 24, textAlign: 'center' }}>Please wait while we process your order...</Text>
+                  <View style={{ width: '100%' }}>
+                    {[1, 2, 3, 4, 5].map((step) => (
+                      <View key={step} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <View
+                          style={{
+                            width: 28, height: 28, borderRadius: 14, backgroundColor: processingStep >= step ? colors.success : colors.backgroundTertiary,
+                            justifyContent: 'center', alignItems: 'center',
+                          }}
+                        >
+                          {processingStep > step ? (
+                            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                          ) : processingStep === step ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : null}
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 14, color: processingStep >= step ? colors.text : colors.textSecondary,
+                            fontWeight: processingStep >= step ? '600' : '400',
+                          }}
+                        >
+                          {step === 1 ? 'Validating order' : 
+                           step === 2 ? 'Processing payment' : 
+                           step === 3 ? 'Confirming order' : 
+                           step === 4 ? 'Creating order' : 
+                           step === 5 ? 'Order confirmed' : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
               </View>
             )}
-          </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Full Name <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={shippingAddress.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                placeholder="Enter your full name"
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Phone Number <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={shippingAddress.phone}
-                onChangeText={(value) => handleInputChange('phone', value)}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Address <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={shippingAddress.address}
-                onChangeText={(value) => handleInputChange('address', value)}
-                placeholder="Enter your complete address"
-                multiline
-                numberOfLines={3}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>
-                  City <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={shippingAddress.city}
-                  onChangeText={(value) => handleInputChange('city', value)}
-                  placeholder="City"
-                  placeholderTextColor="#9ca3af"
-                />
+            {/* Shipping Address Form */}
+            <View style={{ backgroundColor: colors.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 20, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 2 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="location-outline" size={20} color={colors.primary} />
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Shipping Address</Text>
+                </View>
+                {addressSaved ? (
+                  <View style={{ backgroundColor: isDark ? '#064E3B' : '#D1FAE5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.success, marginLeft: 4 }}>Saved</Text>
+                  </View>
+                ) : null}
               </View>
 
-              <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>State</Text>
-                <TextInput
-                  style={styles.input}
-                  value={shippingAddress.state}
-                  onChangeText={(value) => handleInputChange('state', value)}
-                  placeholder="State"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>ZIP Code</Text>
-                <TextInput
-                  style={styles.input}
-                  value={shippingAddress.zipCode}
-                  onChangeText={(value) => handleInputChange('zipCode', value)}
-                  placeholder="ZIP Code"
-                  keyboardType="numeric"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-
-              <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>Country</Text>
-                <TextInput
-                  style={styles.input}
-                  value={shippingAddress.country}
-                  onChangeText={(value) => handleInputChange('country', value)}
-                  placeholder="Country"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={saveAddress}
-              disabled={savingAddress}
-              style={[styles.saveButton, savingAddress && styles.saveButtonDisabled]}
-            >
-              {savingAddress ? (
-                <ActivityIndicator size="small" color="#374151" />
-              ) : (
-                <Text style={styles.saveButtonText}>✓ Save Address</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Order Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
-          <View style={styles.orderItems}>
-            {cart.map((item) => {
-              const product = item.product || item;
-              const price = product.price || product.finalPrice || 0;
-              return (
-                <View key={item._id || item.id} style={styles.orderItem}>
-                  <Text style={styles.orderItemName} numberOfLines={2}>
-                    {product.name}
+              <View>
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Full Name <Text style={{ color: colors.error }}>*</Text>
                   </Text>
-                  <Text style={styles.orderItemQty}>Qty: {item.quantity}</Text>
-                  <Text style={styles.orderItemPrice}>
-                    ₹{(price * item.quantity).toLocaleString()}
+                  <TextInput
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                    value={shippingAddress.name}
+                    onChangeText={(value) => handleInputChange('name', value)}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Phone Number <Text style={{ color: colors.error }}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                    value={shippingAddress.phone}
+                    onChangeText={(value) => handleInputChange('phone', value)}
+                    placeholder="Enter your phone number"
+                    keyboardType="phone-pad"
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Address <Text style={{ color: colors.error }}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background, height: 90, textAlignVertical: 'top' }}
+                    value={shippingAddress.address}
+                    onChangeText={(value) => handleInputChange('address', value)}
+                    placeholder="Enter your complete address"
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+
+                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      City <Text style={{ color: colors.error }}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                      value={shippingAddress.city}
+                      onChangeText={(value) => handleInputChange('city', value)}
+                      placeholder="City"
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                  </View>
+
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>State</Text>
+                    <TextInput
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                      value={shippingAddress.state}
+                      onChangeText={(value) => handleInputChange('state', value)}
+                      placeholder="State"
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>ZIP Code</Text>
+                    <TextInput
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                      value={shippingAddress.zipCode}
+                      onChangeText={(value) => handleInputChange('zipCode', value)}
+                      placeholder="ZIP Code"
+                      keyboardType="numeric"
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                  </View>
+
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Country</Text>
+                    <TextInput
+                      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, backgroundColor: colors.background }}
+                      value={shippingAddress.country}
+                      onChangeText={(value) => handleInputChange('country', value)}
+                      placeholder="Country"
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={saveAddress}
+                  disabled={savingAddress}
+                  style={{ backgroundColor: colors.backgroundTertiary, paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: colors.border, marginTop: 8, flexDirection: 'row', justifyContent: 'center', opacity: savingAddress ? 0.6 : 1 }}
+                >
+                  {savingAddress ? (
+                    <ActivityIndicator size="small" color={colors.text} />
+                  ) : (
+                    <>
+                      <Ionicons name="save-outline" size={18} color={colors.text} />
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginLeft: 8 }}>Save Address</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Order Summary */}
+            <View style={{ backgroundColor: colors.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 20, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Order Summary</Text>
+              </View>
+              <View style={{ marginBottom: 20 }}>
+                {cart.map((item) => {
+                  const product = item.product || item;
+                  const price = product.price || product.finalPrice || 0;
+                  return (
+                    <View key={item._id || item.id} style={{ paddingBottom: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>Qty: {item.quantity}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                          ₹{(price * item.quantity).toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={{ paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Subtotal</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '500', color: colors.text }}>
+                    ₹{getCartTotal().toLocaleString()}
                   </Text>
                 </View>
-              );
-            })}
-          </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Shipping</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.success, marginLeft: 4 }}>Free</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 16, borderTopWidth: 2, borderTopColor: colors.border }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Total</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>
+                    ₹{getCartTotal().toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            </View>
 
-          <View style={styles.summary}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>
-                ₹{getCartTotal().toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text style={styles.summaryValueFree}>Free</Text>
-            </View>
-            <View style={styles.summaryRowTotal}>
-              <Text style={styles.summaryTotalLabel}>Total</Text>
-              <Text style={styles.summaryTotalValue}>
-                ₹{getCartTotal().toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
+            {/* Payment Method Selection */}
+            <View style={{ backgroundColor: colors.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 20, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <Ionicons name="card-outline" size={20} color={colors.primary} />
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Payment Method</Text>
+              </View>
+              <View>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 2, borderColor: paymentMethod === 'razorpay' ? colors.primary : colors.border,
+                    borderRadius: 12, backgroundColor: paymentMethod === 'razorpay' ? (isDark ? '#1A1A1A' : '#F9FAFB') : colors.card, marginBottom: 12,
+                  }}
+                  onPress={() => setPaymentMethod('razorpay')}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: paymentMethod === 'razorpay' ? colors.primary : colors.border, justifyContent: 'center', alignItems: 'center', backgroundColor: paymentMethod === 'razorpay' ? colors.primary : 'transparent', marginRight: 16 }}>
+                    {paymentMethod === 'razorpay' && <Ionicons name="checkmark" size={14} color={isDark ? '#000000' : '#FFFFFF'} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                      <Ionicons name="wallet-outline" size={18} color={paymentMethod === 'razorpay' ? colors.primary : colors.textSecondary} />
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginLeft: 8 }}>Online Payment</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>Cards, UPI, Wallets</Text>
+                  </View>
+                </TouchableOpacity>
 
-        {/* Payment Method Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <View style={styles.paymentMethods}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 2, borderColor: paymentMethod === 'COD' ? colors.primary : colors.border,
+                    borderRadius: 12, backgroundColor: paymentMethod === 'COD' ? (isDark ? '#1A1A1A' : '#F9FAFB') : colors.card,
+                  }}
+                  onPress={() => setPaymentMethod('COD')}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: paymentMethod === 'COD' ? colors.primary : colors.border, justifyContent: 'center', alignItems: 'center', backgroundColor: paymentMethod === 'COD' ? colors.primary : 'transparent', marginRight: 16 }}>
+                    {paymentMethod === 'COD' && <Ionicons name="checkmark" size={14} color={isDark ? '#000000' : '#FFFFFF'} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                      <Ionicons name="cash-outline" size={18} color={paymentMethod === 'COD' ? colors.primary : colors.textSecondary} />
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginLeft: 8 }}>Cash on Delivery</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>Pay on delivery</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Payment Button */}
             <TouchableOpacity
-              style={[
-                styles.paymentMethod,
-                paymentMethod === 'razorpay' && styles.paymentMethodActive,
-              ]}
-              onPress={() => setPaymentMethod('razorpay')}
+              onPress={handlePayment}
+              disabled={loading || isProcessingOrder}
+              style={{
+                backgroundColor: (loading || isProcessingOrder) ? colors.backgroundTertiary : colors.primary,
+                paddingVertical: 18, borderRadius: 12, alignItems: 'center', marginHorizontal: 16, marginTop: 24,
+                shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+                opacity: (loading || isProcessingOrder) ? 0.6 : 1,
+              }}
+              activeOpacity={0.8}
             >
-              <View style={styles.radio}>
-                {paymentMethod === 'razorpay' && <View style={styles.radioSelected} />}
-              </View>
-              <View style={styles.paymentMethodInfo}>
-                <Text style={styles.paymentMethodTitle}>Online Payment</Text>
-                <Text style={styles.paymentMethodSubtitle}>Cards, UPI, Wallets</Text>
-              </View>
+              {loading || isProcessingOrder ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={isDark ? '#000000' : '#FFFFFF'} />
+                  <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 17, fontWeight: '700', marginLeft: 12 }}>
+                    {isProcessingOrder ? 'Placing Order...' : 'Processing...'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
+                    {paymentMethod === 'COD' ? 'Place Order' : 'Pay Now'}
+                  </Text>
+                  <Ionicons name={paymentMethod === 'COD' ? 'checkmark-circle' : 'card'} size={20} color={isDark ? '#000000' : '#FFFFFF'} style={{ marginLeft: 8 }} />
+                </View>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.paymentMethod,
-                paymentMethod === 'COD' && styles.paymentMethodActive,
-              ]}
-              onPress={() => setPaymentMethod('COD')}
-            >
-              <View style={styles.radio}>
-                {paymentMethod === 'COD' && <View style={styles.radioSelected} />}
-              </View>
-              <View style={styles.paymentMethodInfo}>
-                <Text style={styles.paymentMethodTitle}>Cash on Delivery</Text>
-                <Text style={styles.paymentMethodSubtitle}>Pay on delivery</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Payment Button */}
-        <TouchableOpacity
-          onPress={handlePayment}
-          disabled={loading || isProcessingOrder}
-          style={[styles.paymentButton, (loading || isProcessingOrder) && styles.paymentButtonDisabled]}
-        >
-          {loading || isProcessingOrder ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.paymentButtonText}>
-                {isProcessingOrder ? 'Placing Order...' : 'Processing...'}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.paymentButtonText}>
-              {paymentMethod === 'COD' ? 'Place Order' : 'Pay Now'}
+            <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: 'center', marginTop: 16, marginHorizontal: 16, lineHeight: 18 }}>
+              By placing your order, you agree to our{' '}
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>Terms & Conditions</Text>
             </Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.termsText}>
-          By placing your order, you agree to our Terms & Conditions
-        </Text>
-      </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
       <BottomNavBar />
-    </KeyboardAvoidingView>
+    </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: '#111827',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-    padding: 16,
-    margin: 16,
-    borderRadius: 4,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#dc2626',
-  },
-  processingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  processingModal: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  processingTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  processingText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  stepsContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  step: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stepIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepIndicatorActive: {
-    backgroundColor: '#10b981',
-  },
-  stepCheck: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  stepText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  stepTextActive: {
-    color: '#111827',
-    fontWeight: '500',
-  },
-  section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  savedBadge: {
-    backgroundColor: '#d1fae5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  savedText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#10b981',
-  },
-  form: {
-    gap: 16,
-  },
-  inputGroup: {
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#ef4444',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#fff',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfWidth: {
-    flex: 1,
-  },
-  saveButton: {
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 8,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  orderItems: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  orderItem: {
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  orderItemName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  orderItemQty: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  orderItemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  summary: {
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    gap: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  summaryValueFree: {
-    color: '#10b981',
-  },
-  summaryRowTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  summaryTotalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  summaryTotalValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  paymentMethods: {
-    gap: 12,
-    marginTop: 8,
-  },
-  paymentMethod: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    gap: 12,
-  },
-  paymentMethodActive: {
-    borderColor: '#111827',
-    backgroundColor: '#f9fafb',
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioSelected: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#111827',
-  },
-  paymentMethodInfo: {
-    flex: 1,
-  },
-  paymentMethodTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  paymentMethodSubtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  paymentButton: {
-    backgroundColor: '#111827',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  paymentButtonDisabled: {
-    opacity: 0.6,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  paymentButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  termsText: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 12,
-    marginHorizontal: 16,
-  },
-});
 
 export default CheckoutScreen;

@@ -17,10 +17,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { productAPI, searchAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import HomeHeader from '../components/HomeHeader';
+import { useTheme } from '../context/ThemeContext';
 import BottomNavBar from '../components/BottomNavBar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -95,8 +96,20 @@ const fetchFreshDrops = async () => {
       allProducts = [...allProducts, ...lenses.data.products.slice(0, 2)];
     }
     
+    // Remove duplicate products based on product ID
+    const uniqueProductsMap = new Map();
+    allProducts.forEach(product => {
+      if (product) {
+        const productId = product._id || product.id;
+        if (productId && !uniqueProductsMap.has(productId)) {
+          uniqueProductsMap.set(productId, product);
+        }
+      }
+    });
+    const uniqueProducts = Array.from(uniqueProductsMap.values());
+    
     // Filter out sarees from all products
-    const filteredProducts = allProducts.filter(product => {
+    const filteredProducts = uniqueProducts.filter(product => {
       if (!product) return false;
       
       const subCategory = (product.subCategory || '').toLowerCase().trim();
@@ -123,8 +136,8 @@ const fetchFreshDrops = async () => {
 };
 
 const fetchSaleItems = async () => {
-  const res = await productAPI.getAllProducts({ limit: 4, onSale: true, sort: 'discountPercent', order: 'desc' });
-  return res?.success ? res.data.products.slice(0, 4) : [];
+  const res = await productAPI.getAllProducts({ limit: 30, onSale: true, sort: 'discountPercent', order: 'desc' });
+  return res?.success ? res.data.products : [];
 };
 
 const fetchMen = async () => {
@@ -290,6 +303,7 @@ const fetchAccessories = async () => {
 
 // --- NEWS TICKER COMPONENT (Converted to Animated.View) ---
 const NewsTicker = () => {
+  const { colors, isDark } = useTheme();
   const marqueeContent = "FREE SHIPPING ON ALL ORDERS OVER ₹1,000   •   NEW SEASON STYLES ADDED DAILY   •   LIMITED TIME DISCOUNTS ON WATCHES   •   JOIN OUR LOYALTY PROGRAM   •   ";
   const translateX = useRef(new Animated.Value(0)).current;
   // Calculate approximate content width (text width is dynamic, so we estimate)
@@ -310,7 +324,7 @@ const NewsTicker = () => {
   }, [estimatedContentWidth, translateX]);
 
   return (
-    <View className="bg-black py-3 overflow-hidden">
+    <View style={{ backgroundColor: colors.primary, paddingVertical: 12, overflow: 'hidden' }}>
       <Animated.View
         style={{ 
           flexDirection: 'row',
@@ -319,16 +333,29 @@ const NewsTicker = () => {
       >
         {/* Render content twice for seamless infinite scroll */}
         <Text 
-          className="text-white text-xs font-medium tracking-wider uppercase"
+          style={{ 
+            color: isDark ? colors.primary : '#FFFFFF', 
+            fontSize: 12, 
+            fontWeight: '500', 
+            letterSpacing: 1, 
+            textTransform: 'uppercase',
+            flexShrink: 0, 
+            marginRight: 50 
+          }}
           numberOfLines={1}
-          style={{ flexShrink: 0, marginRight: 50 }}
         >
           {marqueeContent}
         </Text>
         <Text 
-          className="text-white text-xs font-medium tracking-wider uppercase"
+          style={{ 
+            color: isDark ? colors.primary : '#FFFFFF', 
+            fontSize: 12, 
+            fontWeight: '500', 
+            letterSpacing: 1, 
+            textTransform: 'uppercase',
+            flexShrink: 0 
+          }}
           numberOfLines={1}
-          style={{ flexShrink: 0 }}
         >
           {marqueeContent}
         </Text>
@@ -346,6 +373,7 @@ const SkeletonCard = () => (
 
 // --- PRODUCT SECTION COMPONENT ---
 const ProductSection = ({ title, subtitle, products, viewAllLink, bgColor = 'bg-white', isLoading, navigation }) => {
+  const { colors, isDark } = useTheme();
   const handleViewAll = () => {
     if (title === 'On Sale') {
       navigation.navigate('Sale');
@@ -356,42 +384,45 @@ const ProductSection = ({ title, subtitle, products, viewAllLink, bgColor = 'bg-
     }
   };
 
+  const backgroundColor = bgColor === 'bg-white' ? colors.card : colors.backgroundSecondary;
+
   return (
-    <View className={`py-6 px-4 ${bgColor}`} style={{ paddingHorizontal: 16 }}>
-      <View className="flex-row justify-between items-center mb-5">
-        <View className="flex-1">
-          <Text className="text-xl font-bold text-gray-900">{title}</Text>
-          {subtitle && <Text className="text-gray-500 text-xs mt-1">{subtitle}</Text>}
+    <View style={{ paddingVertical: 24, paddingHorizontal: 16, backgroundColor }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>{title}</Text>
+          {subtitle && <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>{subtitle}</Text>}
         </View>
         {(viewAllLink || title === 'On Sale' || title === 'Fresh Drops') && (
           <TouchableOpacity
             onPress={handleViewAll}
-            className="bg-gray-900 px-4 py-2 rounded-full ml-3"
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginLeft: 12, borderWidth: 1, borderColor: colors.border }}
+            activeOpacity={0.8}
           >
-            <Text className="text-white text-xs font-bold">View All</Text>
+            <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 12, fontWeight: '700' }}>View All</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <View className="flex-row flex-wrap justify-between">
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         {isLoading ? (
           [1, 2, 3, 4].map(i => (
-            <View key={i} className="w-[48%] mb-4">
-              <View className="bg-gray-200 rounded-xl" style={{ aspectRatio: 0.75 }} />
-              <View className="px-3 py-3">
-                <View className="h-4 bg-gray-200 rounded mb-2" />
-                <View className="h-3 bg-gray-200 rounded w-20" />
+            <View key={`${title}-skeleton-${i}`} style={{ width: '48%', marginBottom: 16 }}>
+              <View style={{ backgroundColor: colors.backgroundTertiary, borderRadius: 12, aspectRatio: 0.75 }} />
+              <View style={{ paddingHorizontal: 12, paddingVertical: 12 }}>
+                <View style={{ height: 16, backgroundColor: colors.backgroundTertiary, borderRadius: 4, marginBottom: 8 }} />
+                <View style={{ height: 12, backgroundColor: colors.backgroundTertiary, borderRadius: 4, width: 80 }} />
               </View>
             </View>
           ))
         ) : (
           products && products.length > 0 ? (
             products.slice(0, 4).map((product, index) => (
-              <ProductCard key={product._id || index} product={product} />
+              <ProductCard key={`${title}-${product._id || product.id || index}`} product={product} />
             ))
           ) : (
-            <View className="w-full py-10 items-center">
-              <Text className="text-gray-500 text-sm">No products found.</Text>
+            <View style={{ width: '100%', paddingVertical: 40, alignItems: 'center' }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>No products found.</Text>
             </View>
           )
         )}
@@ -403,12 +434,16 @@ const ProductSection = ({ title, subtitle, products, viewAllLink, bgColor = 'bg-
 // --- MAIN HOME SCREEN ---
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { colors, isDark } = useTheme();
+  const scrollViewRef = useRef(null);
 
   // --- UI STATE ---
   const [activeStoryIndex, setActiveStoryIndex] = useState(null);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [heroImageError, setHeroImageError] = useState(false);
+  const [bannerImageError, setBannerImageError] = useState(false);
 
   // --- DATA STATE ---
   const [freshDrops, setFreshDrops] = useState([]);
@@ -430,8 +465,48 @@ const HomeScreen = () => {
         ]);
         console.log('HomeScreen - Men items:', menData?.length || 0, menData);
         console.log('HomeScreen - Women items:', womenData?.length || 0, womenData);
+        
+        // Collect all product IDs that are already displayed in other sections
+        const displayedProductIds = new Set();
+        
+        // Add IDs from Fresh Drops
+        (freshDropsData || []).forEach(product => {
+          const id = product._id || product.id;
+          if (id) displayedProductIds.add(id);
+        });
+        
+        // Add IDs from Men items
+        (menData || []).forEach(product => {
+          const id = product._id || product.id;
+          if (id) displayedProductIds.add(id);
+        });
+        
+        // Add IDs from Women items
+        (womenData || []).forEach(product => {
+          const id = product._id || product.id;
+          if (id) displayedProductIds.add(id);
+        });
+        
+        // Add IDs from Watches
+        (watchesData || []).forEach(product => {
+          const id = product._id || product.id;
+          if (id) displayedProductIds.add(id);
+        });
+        
+        // Add IDs from Accessories
+        (accessoriesData || []).forEach(product => {
+          const id = product._id || product.id;
+          if (id) displayedProductIds.add(id);
+        });
+        
+        // Filter sale items to exclude products already displayed
+        const filteredSaleItems = (saleData || []).filter(product => {
+          const id = product._id || product.id;
+          return id && !displayedProductIds.has(id);
+        }).slice(0, 4); // Take first 4 unique sale items
+        
         setFreshDrops(freshDropsData || []);
-        setSaleItems(saleData || []);
+        setSaleItems(filteredSaleItems);
         setMenItems(menData || []);
         setWomenItems(womenData || []);
         setWatches(watchesData || []);
@@ -445,6 +520,17 @@ const HomeScreen = () => {
     loadAllData();
   }, []);
 
+  // Handle scroll to top when tab is pressed
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.scrollToTop && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        // Clear the param to prevent scrolling on every focus
+        navigation.setParams({ scrollToTop: undefined });
+      }
+    }, [route.params?.scrollToTop, navigation])
+  );
+
   const stories = [
     { hashtag: 'Xmas', icon: 'snow', image: 'https://res.cloudinary.com/de1bg8ivx/image/upload/v1764741928/IMG_20251123_161820_skzchs.png' },
     { hashtag: 'Desi', icon: 'sunny', image: 'https://res.cloudinary.com/de1bg8ivx/image/upload/v1764741995/image-104_iuyyuw.png' },
@@ -456,25 +542,73 @@ const HomeScreen = () => {
   ];
 
 
+  // Categories for sticky bar
+  const categories = [
+    { id: 'men', label: 'Men', icon: 'man-outline' },
+    { id: 'women', label: 'Women', icon: 'woman-outline' },
+    { id: 'watches', label: 'Watches', icon: 'watch-outline' },
+    { id: 'accessories', label: 'Accessories', icon: 'bag-outline' },
+    { id: 'lenses', label: 'Eyewear', icon: 'glasses-outline' },
+    { id: 'sale', label: 'Sale', icon: 'pricetag-outline' },
+  ];
+
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView className="bg-white" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
         <HomeHeader />
       </SafeAreaView>
+      
+      {/* --- STICKY CATEGORIES BAR --- */}
+      <View style={{ backgroundColor: colors.background, zIndex: 10 }}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              onPress={() => {
+                if (category.id === 'sale') {
+                  navigation.navigate('Sale');
+                } else {
+                  navigation.navigate('Category', { category: category.id });
+                }
+              }}
+              style={{
+                marginRight: 12,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                backgroundColor: colors.backgroundTertiary,
+                borderWidth: 1,
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={category.icon} size={16} color={colors.text} style={{ marginRight: 6 }} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>{category.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       <ScrollView 
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={{ paddingBottom: 50 }}
       >
         {/* --- SEARCH BAR --- */}
-        <View className="bg-white px-4 py-2 border-b border-gray-100" style={{ paddingHorizontal: 16 }}>
-          <View className="flex-row items-center bg-gray-100 rounded-lg px-3" style={{ height: 40 }}>
-            <Ionicons name="search" size={18} color="#6b7280" />
+        <View style={{ backgroundColor: colors.background, paddingHorizontal: 16, paddingVertical: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.backgroundTertiary, borderRadius: 8, paddingHorizontal: 12, height: 40 }}>
+            <Ionicons name="search" size={18} color={colors.textSecondary} />
             <TextInput
-              className="ml-2 text-gray-900 text-sm flex-1"
-              style={{ height: 40, paddingVertical: 0 }}
+              style={{ marginLeft: 8, color: colors.text, fontSize: 14, flex: 1, height: 40, paddingVertical: 0 }}
               placeholder="Search for products..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCapitalize="none"
@@ -483,9 +617,10 @@ const HomeScreen = () => {
             {searchQuery.length > 0 ? (
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
-                className="ml-2"
+                style={{ marginLeft: 8 }}
+                activeOpacity={0.7}
               >
-                <Ionicons name="close-circle" size={18} color="#6b7280" />
+                <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -493,20 +628,20 @@ const HomeScreen = () => {
 
         {/* --- SEARCH RESULTS --- */}
         {searchQuery.trim().length > 0 ? (
-          <View className="bg-white" style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+          <View style={{ backgroundColor: colors.background, paddingHorizontal: 16, paddingVertical: 16 }}>
             {isSearching ? (
-              <View className="py-8 items-center">
-                <ActivityIndicator size="large" color="#000" />
-                <Text className="mt-3 text-sm text-gray-500">Searching...</Text>
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Searching...</Text>
               </View>
             ) : searchResults.length > 0 ? (
               <>
-                <Text className="text-lg font-bold text-gray-900 mb-4">
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 }}>
                   Search Results ({searchResults.length})
                 </Text>
-                <View className="flex-row flex-wrap justify-between">
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                   {searchResults.slice(0, 8).map((product, index) => (
-                    <View key={product._id || product.id || index} className="w-[48%] mb-4">
+                    <View key={`search-${product._id || product.id || index}`} style={{ width: '48%', marginBottom: 16 }}>
                       <ProductCard product={product} />
                     </View>
                   ))}
@@ -514,17 +649,18 @@ const HomeScreen = () => {
                 {searchResults.length > 8 ? (
                   <TouchableOpacity
                     onPress={() => navigation.navigate('Search', { query: searchQuery })}
-                    className="mt-4 py-3 bg-gray-900 rounded-lg items-center"
+                    style={{ marginTop: 16, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center' }}
+                    activeOpacity={0.8}
                   >
-                    <Text className="text-white font-semibold">View All {searchResults.length} Results</Text>
+                    <Text style={{ color: isDark ? colors.primary : '#FFFFFF', fontWeight: '600' }}>View All {searchResults.length} Results</Text>
                   </TouchableOpacity>
                 ) : null}
               </>
             ) : (
-              <View className="py-8 items-center">
-                <Ionicons name="search-outline" size={48} color="#9ca3af" />
-                <Text className="mt-4 text-base font-semibold text-gray-900">No products found</Text>
-                <Text className="mt-2 text-sm text-gray-500 text-center">
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Ionicons name="search-outline" size={48} color={colors.textTertiary} />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600', color: colors.text }}>No products found</Text>
+                <Text style={{ marginTop: 8, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>
                   Try searching with different keywords
                 </Text>
               </View>
@@ -535,7 +671,7 @@ const HomeScreen = () => {
          {/* --- HERO SECTION --- */}
          {searchQuery.trim().length === 0 ? (
            <>
-         <View className="relative w-full bg-gray-100" style={{ width: SCREEN_WIDTH }}>
+         <View style={{ backgroundColor: colors.background }}>
             <TouchableOpacity 
                activeOpacity={0.9}
                onPress={() => navigation.navigate('Category', { category: 'watches' })}
@@ -564,12 +700,11 @@ const HomeScreen = () => {
             </TouchableOpacity>
         </View>
 
-        {/* --- NEWS TICKER --- */}
-        <NewsTicker />
+       
 
         {/* --- STORIES SECTION --- */}
-        <View className="py-6 bg-white border-b border-gray-100" style={{ paddingHorizontal: 16 }}>
-          <Text className="text-center text-sm font-bold uppercase tracking-widest text-gray-500 mb-4">
+        <View style={{ paddingTop: 30, paddingBottom: 24, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.borderLight, paddingHorizontal: 16 }}>
+          <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 2, color: colors.textSecondary, marginBottom: 16 }}>
             Stories By StyleTrending
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingLeft: 0 }}>
@@ -577,26 +712,27 @@ const HomeScreen = () => {
               <TouchableOpacity
                 key={index}
                 onPress={() => { setActiveStoryIndex(index); setIsStoryViewerOpen(true); }}
-                className="items-center mr-5"
+                style={{ alignItems: 'center', marginRight: 20 }}
+                activeOpacity={0.7}
               >
-                <View className="p-[2px] rounded-full border-2 border-pink-500 mb-1">
+                <View style={{ padding: 2, borderRadius: 9999, borderWidth: 2, borderColor: '#EC4899', marginBottom: 4 }}>
                   <Image
                     source={{ uri: item.image }}
-                    className="w-16 h-16 rounded-full border border-white"
+                    style={{ width: 64, height: 64, borderRadius: 9999, borderWidth: 2, borderColor: colors.card }}
                   />
                 </View>
-                <Text className="text-xs font-semibold text-gray-700">#{item.hashtag}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>#{item.hashtag}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
         {/* --- BROWSE BY CATEGORY --- */}
-        <View className="py-10 bg-gray-50" style={{ paddingHorizontal: 16 }}>
-           <View className="mb-8 items-center">
-             <Text className="text-amber-600 text-[11px] font-bold tracking-[3px] uppercase mb-2">Curated Collections</Text>
-             <Text className="text-3xl font-extrabold text-gray-900 mb-1">Shop By Category</Text>
-             <View className="w-16 h-1 bg-amber-600 rounded-full" />
+        <View style={{ paddingVertical: 40, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 16 }}>
+           <View style={{ marginBottom: 32, alignItems: 'center' }}>
+             <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '700', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 8 }}>Curated Collections</Text>
+             <Text style={{ fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 4 }}>Shop By Category</Text>
+             <View style={{ width: 64, height: 4, backgroundColor: '#F59E0B', borderRadius: 9999 }} />
            </View>
            
            <View className="flex-row flex-wrap justify-between gap-3">
@@ -689,6 +825,39 @@ const HomeScreen = () => {
            navigation={navigation}
          />
 
+         {/* --- BLACK FRIDAY BANNER --- */}
+         <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: colors.background }}>
+           <TouchableOpacity 
+             activeOpacity={0.8}
+             onPress={() => {
+               console.log('Banner clicked - navigating to Sale');
+               navigation.navigate('Sale');
+             }}
+             style={{ width: '100%', borderRadius: 12, overflow: 'hidden', backgroundColor: colors.card }}
+           >
+             {!bannerImageError ? (
+               <Image
+                 source={{ uri: 'https://res.cloudinary.com/dvkxgrcbv/image/upload/f_auto,q_auto,w_800/v1768385932/Red_and_Black_Modern_Black_Friday_Sale_Instagram_Post_1080_x_1080_px_itx0dc.svg' }}
+                 style={{ width: '100%', height: SCREEN_WIDTH * 0.8, borderRadius: 12 }}
+                 resizeMode="cover"
+                 pointerEvents="none"
+                 onError={(error) => {
+                   console.log('Banner image error:', error);
+                   setBannerImageError(true);
+                 }}
+                 onLoad={() => {
+                   console.log('Banner image loaded successfully');
+                 }}
+               />
+             ) : (
+               <View style={{ width: '100%', height: SCREEN_WIDTH * 0.8, backgroundColor: '#DC2626', borderRadius: 12, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                 <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '800', textAlign: 'center', marginBottom: 8 }}>BLACK FRIDAY SALE</Text>
+                 <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '600', textAlign: 'center' }}>Limited Time Offers</Text>
+               </View>
+             )}
+           </TouchableOpacity>
+         </View>
+
          {/* --- WATCHES --- */}
          <ProductSection
            title="Watches"
@@ -711,43 +880,43 @@ const HomeScreen = () => {
          />
 
         {/* --- MEN & WOMEN GRID --- */}
-        <View className="py-8 bg-gray-50" style={{ paddingHorizontal: 16 }}>
-          <View className="mb-6 items-center">
-            <Text className="text-2xl font-extrabold text-gray-900 mb-1">Shop By Gender</Text>
-            <View className="w-12 h-1 bg-gray-900 rounded-full" />
+        <View style={{ paddingVertical: 32, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 16 }}>
+          <View style={{ marginBottom: 24, alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 }}>Shop By Gender</Text>
+            <View style={{ width: 48, height: 4, backgroundColor: colors.primary, borderRadius: 9999 }} />
           </View>
           
           {/* For Him Section */}
-          <View className="mb-6">
-            <View className="flex-row justify-between items-center mb-4 px-1">
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 }}>
               <View>
-                <Text className="text-2xl font-bold text-gray-900">For Him</Text>
-                <Text className="text-sm text-gray-500 mt-0.5">Sharp tailoring & modern fits</Text>
+                <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>For Him</Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 2 }}>Sharp tailoring & modern fits</Text>
               </View>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Category', { category: 'men' })}
-                className="flex-row items-center"
+                style={{ flexDirection: 'row', alignItems: 'center' }}
                 activeOpacity={0.7}
               >
-                <Text className="text-sm font-semibold text-gray-900 mr-1">View All</Text>
-                <Ionicons name="chevron-forward" size={18} color="#111827" />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginRight: 4 }}>View All</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
             
             {isLoading ? (
-              <View className="flex-row flex-wrap justify-between">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {[1, 2, 3, 4].map(i => (
-                  <View key={`men-skeleton-${i}`} className="w-[48%] mb-4">
-                    <View className="bg-gray-200 rounded-xl" style={{ aspectRatio: 0.75 }} />
-                    <View className="px-2 py-3">
-                      <View className="h-4 bg-gray-200 rounded mb-2" />
-                      <View className="h-3 bg-gray-200 rounded w-20" />
+                  <View key={`men-skeleton-${i}`} style={{ width: '48%', marginBottom: 16 }}>
+                    <View style={{ backgroundColor: colors.backgroundTertiary, borderRadius: 12, aspectRatio: 0.75 }} />
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 12 }}>
+                      <View style={{ height: 16, backgroundColor: colors.backgroundTertiary, borderRadius: 4, marginBottom: 8 }} />
+                      <View style={{ height: 12, backgroundColor: colors.backgroundTertiary, borderRadius: 4, width: 80 }} />
                     </View>
                   </View>
                 ))}
               </View>
             ) : menItems && menItems.length > 0 ? (
-              <View className="flex-row flex-wrap justify-between">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {menItems.slice(0, 4).map((p, i) => (
                   <ProductCard
                     key={`men-${p._id || p.id || `item-${i}`}`}
@@ -756,47 +925,47 @@ const HomeScreen = () => {
                 ))}
               </View>
             ) : (
-              <View className="bg-white rounded-xl p-8 items-center border border-gray-200">
-                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
-                  <Ionicons name="shirt-outline" size={32} color="#9CA3AF" />
+              <View style={{ backgroundColor: colors.card, borderRadius: 12, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
+                <View style={{ width: 64, height: 64, backgroundColor: colors.backgroundTertiary, borderRadius: 9999, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Ionicons name="shirt-outline" size={32} color={colors.textTertiary} />
                 </View>
-                <Text className="text-sm font-semibold text-gray-600 mb-1">No products</Text>
-                <Text className="text-xs text-gray-400 text-center">Check back soon</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 }}>No products</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: 'center' }}>Check back soon</Text>
               </View>
             )}
           </View>
 
           {/* For Her Section */}
-          <View className="mb-6">
-            <View className="flex-row justify-between items-center mb-4 px-1">
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 }}>
               <View>
-                <Text className="text-2xl font-bold text-gray-900">For Her</Text>
-                <Text className="text-sm text-gray-500 mt-0.5">Modern silhouettes & elegant styles</Text>
+                <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>For Her</Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 2 }}>Modern silhouettes & elegant styles</Text>
               </View>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Category', { category: 'women' })}
-                className="flex-row items-center"
+                style={{ flexDirection: 'row', alignItems: 'center' }}
                 activeOpacity={0.7}
               >
-                <Text className="text-sm font-semibold text-gray-900 mr-1">View All</Text>
-                <Ionicons name="chevron-forward" size={18} color="#111827" />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginRight: 4 }}>View All</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
             
             {isLoading ? (
-              <View className="flex-row flex-wrap justify-between">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {[1, 2, 3, 4].map(i => (
-                  <View key={`women-skeleton-${i}`} className="w-[48%] mb-4">
-                    <View className="bg-gray-200 rounded-xl" style={{ aspectRatio: 0.75 }} />
-                    <View className="px-2 py-3">
-                      <View className="h-4 bg-gray-200 rounded mb-2" />
-                      <View className="h-3 bg-gray-200 rounded w-20" />
+                  <View key={`women-skeleton-${i}`} style={{ width: '48%', marginBottom: 16 }}>
+                    <View style={{ backgroundColor: colors.backgroundTertiary, borderRadius: 12, aspectRatio: 0.75 }} />
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 12 }}>
+                      <View style={{ height: 16, backgroundColor: colors.backgroundTertiary, borderRadius: 4, marginBottom: 8 }} />
+                      <View style={{ height: 12, backgroundColor: colors.backgroundTertiary, borderRadius: 4, width: 80 }} />
                     </View>
                   </View>
                 ))}
               </View>
             ) : womenItems && womenItems.length > 0 ? (
-              <View className="flex-row flex-wrap justify-between">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {womenItems.slice(0, 4).map((p, i) => (
                   <ProductCard
                     key={`women-${p._id || p.id || `item-${i}`}`}
@@ -805,35 +974,35 @@ const HomeScreen = () => {
                 ))}
               </View>
             ) : (
-              <View className="bg-white rounded-xl p-8 items-center border border-gray-200">
-                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
-                  <Ionicons name="shirt-outline" size={32} color="#9CA3AF" />
+              <View style={{ backgroundColor: colors.card, borderRadius: 12, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
+                <View style={{ width: 64, height: 64, backgroundColor: colors.backgroundTertiary, borderRadius: 9999, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Ionicons name="shirt-outline" size={32} color={colors.textTertiary} />
                 </View>
-                <Text className="text-sm font-semibold text-gray-600 mb-1">No products</Text>
-                <Text className="text-xs text-gray-400 text-center">Check back soon</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 }}>No products</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: 'center' }}>Check back soon</Text>
               </View>
             )}
           </View>
         </View>
 
         {/* --- FEATURED COLLECTIONS --- */}
-        <View className="pb-12" style={{ paddingHorizontal: 16 }}>
-           <View className="items-center mb-6">
-              <Text className="text-2xl font-extrabold text-gray-900">Featured Collections</Text>
-              <Text className="text-gray-500">Essential styles for him and her.</Text>
+        <View style={{ paddingBottom: 48, paddingHorizontal: 16 }}>
+           <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>Featured Collections</Text>
+              <Text style={{ color: colors.textSecondary, marginTop: 4 }}>Essential styles for him and her.</Text>
            </View>
-           <View className="flex-col gap-4">
-              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'women', subcategory: 'shirt' })}>
+           <View style={{ flexDirection: 'column', gap: 16 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'women', subcategory: 'shirt' })} activeOpacity={0.9}>
                  <Image 
                     source={{ uri: 'https://res.cloudinary.com/de1bg8ivx/image/upload/v1763492921/Black_and_White_Modern_New_Arrivals_Blog_Banner_4_x9v1lw.png' }}
-                    className="w-full h-48 rounded-xl"
+                    style={{ width: '100%', height: 192, borderRadius: 12 }}
                     resizeMode="cover"
                  />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'men', subcategory: 'shirt' })}>
+              <TouchableOpacity onPress={() => navigation.navigate('Category', { category: 'men', subcategory: 'shirt' })} activeOpacity={0.9}>
                  <Image 
                     source={{ uri: 'https://res.cloudinary.com/de1bg8ivx/image/upload/v1763493394/5ad7474b-2e60-47c5-b993-cdc9c1449c08.png' }}
-                    className="w-full h-48 rounded-xl"
+                    style={{ width: '100%', height: 192, borderRadius: 12 }}
                     resizeMode="cover"
                  />
               </TouchableOpacity>

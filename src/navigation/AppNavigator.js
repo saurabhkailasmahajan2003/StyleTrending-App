@@ -25,6 +25,7 @@ import FreshDropsScreen from '../screens/FreshDropsScreen';
 import SearchScreen from '../screens/SearchScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderSuccessScreen from '../screens/OrderSuccessScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import DrawerContent from '../components/DrawerContent';
 
 const Stack = createStackNavigator();
@@ -136,6 +137,11 @@ function MainStack() {
       <Stack.Screen 
         name="OrderSuccess" 
         component={OrderSuccessScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

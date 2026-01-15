@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { orderAPI } from '../services/api';
 import { storage } from '../utils/storage';
 import BottomNavBar from '../components/BottomNavBar';
@@ -22,6 +23,7 @@ const OrderSuccessScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { notifyOrderPlaced } = useNotifications();
   
   const paymentMethod = route.params?.method || 'COD';
   const orderId = route.params?.orderId || '';
@@ -47,6 +49,8 @@ const OrderSuccessScreen = () => {
           const response = await orderAPI.getOrder(orderId);
           if (response.success) {
             setOrder(response.data.order);
+            // Trigger notification for order placed
+            notifyOrderPlaced(response.data.order);
           }
         } catch (error) {
           console.error('Error fetching order:', error);

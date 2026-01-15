@@ -1,71 +1,70 @@
 /**
- * Drawer Content Component
- * Side navigation drawer matching the design
+ * Drawer Content Component - Professional & Animated
+ * Stack: React Native + Tailwind CSS (NativeWind)
  */
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  ScrollView, 
+  Image, 
+  Platform, 
+  UIManager, 
+  LayoutAnimation 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const DrawerContent = React.memo(({ onClose }) => {
   const navigation = useNavigation();
   const { isAuthenticated, user, logout } = useAuth();
+  const { theme, isDark, toggleTheme } = useTheme();
   const [expandedCategory, setExpandedCategory] = useState(null);
 
+  // --- CONFIG DATA ---
   const categories = [
     { 
-      id: 'men', 
-      label: 'Men', 
+      id: 'men', label: 'Men', icon: 'man-outline',
       subItems: [
-        { name: 'Shirts', path: 'shirt' },
-        { name: 'T-Shirts', path: 'tshirt' },
-        { name: 'Jeans', path: 'jeans' },
-        { name: 'Trousers', path: 'trousers' },
-        { name: 'Shoes', path: 'shoes' }
+        { name: 'Shirts', path: 'shirt' }, { name: 'T-Shirts', path: 'tshirt' },
+        { name: 'Jeans', path: 'jeans' }, { name: 'Shoes', path: 'shoes' }
       ] 
     },
     { 
-      id: 'women', 
-      label: 'Women', 
+      id: 'women', label: 'Women', icon: 'woman-outline',
       subItems: [
-        { name: 'Shirts', path: 'shirt' },
-        { name: 'T-Shirts', path: 'tshirt' },
-        { name: 'Jeans', path: 'jeans' },
-        { name: 'Trousers', path: 'trousers' },
-        { name: 'Saree', path: 'saree' }
+        { name: 'Tops & Tees', path: 'tshirt' }, { name: 'Dresses', path: 'dress' },
+        { name: 'Jeans', path: 'jeans' }, { name: 'Sarees', path: 'saree' }
       ] 
     },
     { 
-      id: 'watches', 
-      label: 'Watches', 
+      id: 'watches', label: 'Watches', icon: 'watch-outline',
       subItems: [
-        { name: "Men's Watches", path: 'watches', params: { gender: 'men' } },
-        { name: "Women's Watches", path: 'watches', params: { gender: 'women' } },
-        { name: 'Smart Watches', path: 'watches', params: { type: 'smart' } }
+        { name: "Men's", path: 'watches', params: { gender: 'men' } },
+        { name: "Women's", path: 'watches', params: { gender: 'women' } },
       ] 
     },
     { 
-      id: 'eyewear', 
-      label: 'Eyewear', 
+      id: 'accessories', label: 'Accessories', icon: 'glasses-outline',
       subItems: [
-        { name: "Men's Eyewear", path: 'lenses', params: { gender: 'men' } },
-        { name: "Women's Eyewear", path: 'lenses', params: { gender: 'women' } },
-        { name: 'Sunglasses', path: 'lenses', params: { type: 'sun' } }
-      ] 
-    },
-    { 
-      id: 'accessories', 
-      label: 'Accessories', 
-      subItems: [
-        { name: "Men's Accessories", path: 'accessories', params: { gender: 'men' } },
-        { name: "Women's Accessories", path: 'accessories', params: { gender: 'women' } },
-        { name: 'Wallets & Belts', path: 'accessories', params: { type: 'general' } }
+        { name: "Eyewear", path: 'lenses' }, { name: "Wallets", path: 'accessories' }
       ] 
     }
   ];
 
+  // --- HANDLERS ---
   const toggleCategory = (categoryId) => {
+    // Trigger smooth animation
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
   };
 
@@ -79,163 +78,181 @@ const DrawerContent = React.memo(({ onClose }) => {
     onClose();
   };
 
+  // --- DYNAMIC STYLES ---
+  const bgMain = isDark ? 'bg-neutral-900' : 'bg-white';
+  const bgSecondary = isDark ? 'bg-neutral-800' : 'bg-gray-50';
+  const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+  const textSecondary = isDark ? 'text-gray-400' : 'text-gray-500';
+  const borderColor = isDark ? 'border-neutral-800' : 'border-gray-100';
+
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Header Section */}
-        <View className="px-6 pt-10 pb-4 flex-row justify-between items-start">
-          <View className="flex-1">
-            <View className="flex-row items-center mb-2">
-              <Image
-                source={{ uri: 'https://res.cloudinary.com/de1bg8ivx/image/upload/v1765969744/ef93f9f5-0469-413a-a0d3-24df2b70f27b.png' }}
-                className="h-10 w-auto"
-                style={{ height: 40, width: 120 }}
-                resizeMode="contain"
-                fadeDuration={0}
-              />
-            </View>
-            {isAuthenticated && user?.name ? (
-              <Text className="text-xs text-gray-500 mt-1">Hello, {user.name}</Text>
-            ) : null}
-          </View>
-          <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
-            <Ionicons name="close" size={24} color="#9ca3af" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Auth Quick Actions */}
-        <View className="px-6 pb-4 flex-row gap-3">
-          {isAuthenticated ? (
-            <>
-              <TouchableOpacity
-                onPress={() => handleNavigation('Profile')}
-                className="flex-1 flex-row items-center justify-center gap-2 py-3 bg-black rounded-lg"
-              >
-                <Text className="text-white text-sm font-semibold">Profile</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleLogout}
-                className="flex-1 flex-row items-center justify-center gap-2 py-3 bg-white border border-gray-300 rounded-lg"
-              >
-                <Text className="text-gray-900 text-sm font-semibold">Logout</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TouchableOpacity
-                onPress={() => handleNavigation('Login')}
-                className="flex-1 py-3 bg-white border border-gray-200 rounded-lg"
-              >
-                <Text className="text-center text-sm font-bold text-gray-900">Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleNavigation('SignUp')}
-                className="flex-1 py-3 bg-black rounded-lg"
-              >
-                <Text className="text-center text-sm font-bold text-white">Sign Up</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {/* Main Navigation Links */}
-        <View className="px-6 py-4">
-          <TouchableOpacity onPress={() => handleNavigation('Home')} className="mb-4">
-            <Text className="text-2xl font-light tracking-tight text-gray-900">Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleNavigation('Category', { category: 'new-arrival' })} className="mb-4">
-            <Text className="text-2xl font-light tracking-tight text-gray-900">New Arrivals</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleNavigation('Sale')} className="mb-4">
-            <Text className="text-2xl font-bold tracking-tight text-red-600">Sale</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Divider */}
-        <View className="px-6">
-          <View className="w-12 h-px bg-gray-200" />
-        </View>
-
-        {/* Shop Categories */}
-        <View className="px-6 py-4">
-          <Text className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-            Shop Categories
-          </Text>
-          {categories.map((category) => (
-            <View key={category.id} className="border-b border-gray-100">
-              <TouchableOpacity
-                onPress={() => toggleCategory(category.id)}
-                className="flex-row justify-between items-center py-4"
-              >
-                <Text className="text-base font-medium text-gray-800">{category.label}</Text>
-                <Ionicons 
-                  name={expandedCategory === category.id ? "chevron-up" : "chevron-down"} 
-                  size={18} 
-                  color="#9ca3af" 
-                />
-              </TouchableOpacity>
-              
-              {expandedCategory === category.id && (
-                <View className="pl-4 pb-4">
-                  {category.subItems.map((subItem, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      onPress={() => {
-                        if (subItem.params) {
-                          handleNavigation('Category', { category: subItem.path, ...subItem.params });
-                        } else {
-                          handleNavigation('Category', { category: category.id, subcategory: subItem.path });
-                        }
-                      }}
-                      className="mb-3"
-                    >
-                      <Text className="text-sm text-gray-500">{subItem.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    onPress={() => handleNavigation('Category', { category: category.id })}
-                    className="mt-2"
-                  >
-                    <Text className="text-sm font-bold text-black">Shop All</Text>
-                  </TouchableOpacity>
-                </View>
+    <SafeAreaView className={`flex-1 ${bgMain}`} edges={['top', 'bottom']}>
+      
+      {/* --- HEADER: USER PROFILE --- */}
+      <View className={`px-6 pt-6 pb-6 border-b ${borderColor}`}>
+        <View className="flex-row justify-between items-start">
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPress={() => isAuthenticated ? handleNavigation('Profile') : handleNavigation('Login')}
+            className="flex-row items-center gap-x-4"
+          >
+            {/* Avatar Circle */}
+            <View className={`h-14 w-14 rounded-full items-center justify-center ${isDark ? 'bg-neutral-700' : 'bg-gray-200'}`}>
+              {isAuthenticated && user?.avatar ? (
+                <Image source={{ uri: user.avatar }} className="h-14 w-14 rounded-full" />
+              ) : (
+                <Ionicons name="person" size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
               )}
             </View>
-          ))}
+            
+            <View>
+              <Text className={`text-lg font-bold ${textPrimary}`}>
+                {isAuthenticated ? user?.name || 'User' : 'Welcome, Guest'}
+              </Text>
+              <Text className={`text-xs ${textSecondary}`}>
+                {isAuthenticated ? 'View Profile' : 'Sign in to start shopping'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Close Button */}
+          <TouchableOpacity onPress={onClose} className={`p-2 rounded-full ${isDark ? 'bg-neutral-800' : 'bg-gray-100'}`}>
+            <Ionicons name="close" size={20} color={isDark ? 'white' : 'black'} />
+          </TouchableOpacity>
         </View>
+      </View>
+
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        
+        {/* --- MAIN LINKS --- */}
+        <View className="px-6 py-6 gap-y-1">
+          <TouchableOpacity onPress={() => handleNavigation('Home')} className="flex-row items-center py-3">
+            <Ionicons name="home-outline" size={22} color={isDark ? '#D1D5DB' : '#4B5563'} />
+            <Text className={`ml-4 text-base font-medium ${textPrimary}`}>Home</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={() => handleNavigation('FreshDrops')} className="flex-row items-center py-3">
+            <Ionicons name="flash-outline" size={22} color={isDark ? '#D1D5DB' : '#4B5563'} />
+            <Text className={`ml-4 text-base font-medium ${textPrimary}`}>New Arrivals</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={() => handleNavigation('Sale')} className="flex-row items-center py-3">
+            <Ionicons name="pricetag-outline" size={22} color="#EF4444" />
+            <Text className="ml-4 text-base font-bold text-red-500">Sale Collection</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* --- DIVIDER --- */}
+        <View className={`h-[1px] mx-6 ${borderColor}`} />
+
+        {/* --- ACCORDION CATEGORIES --- */}
+        <View className="px-6 py-6">
+          <Text className={`text-xs font-bold tracking-widest uppercase mb-4 ${textSecondary}`}>
+            Shop By Category
+          </Text>
+
+          {categories.map((category) => {
+            const isOpen = expandedCategory === category.id;
+            return (
+              <View key={category.id} className="mb-1">
+                <TouchableOpacity
+                  onPress={() => toggleCategory(category.id)}
+                  className={`flex-row justify-between items-center py-3 ${isOpen ? 'opacity-100' : 'opacity-80'}`}
+                >
+                  <View className="flex-row items-center">
+                    <View className={`w-8 items-center`}>
+                       <Ionicons name={category.icon} size={20} color={isDark ? '#D1D5DB' : '#4B5563'} />
+                    </View>
+                    <Text className={`ml-2 text-base font-medium ${textPrimary}`}>{category.label}</Text>
+                  </View>
+                  <Ionicons 
+                    name={isOpen ? "chevron-up" : "chevron-down"} 
+                    size={16} 
+                    color={isDark ? '#9CA3AF' : '#9CA3AF'} 
+                  />
+                </TouchableOpacity>
+
+                {/* Sub Items (Animated by LayoutAnimation) */}
+                {isOpen && (
+                  <View className={`ml-10 border-l ${borderColor} pl-4 mb-2`}>
+                    {category.subItems.map((sub, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => {
+                          if (sub.params) handleNavigation('Category', { category: sub.path, ...sub.params });
+                          else handleNavigation('Category', { category: category.id, subcategory: sub.path });
+                        }}
+                        className="py-2.5"
+                      >
+                        <Text className={`text-sm ${textSecondary} hover:text-pink-500`}>{sub.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity onPress={() => handleNavigation('Category', { category: category.id })} className="py-2.5 mt-1">
+                      <Text className="text-sm font-bold text-pink-500">View All {category.label}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {/* --- THEME TOGGLE --- */}
+        <View className={`h-[1px] mx-6 ${borderColor}`} />
+        <View className="px-6 py-6">
+          <TouchableOpacity
+            onPress={() => toggleTheme(theme === 'light' ? 'dark' : 'light')}
+            className={`flex-row items-center justify-between p-3 rounded-xl ${bgSecondary}`}
+          >
+             <View className="flex-row items-center gap-x-3">
+                <View className={`p-2 rounded-full ${isDark ? 'bg-neutral-700' : 'bg-white'}`}>
+                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={textPrimary} />
+                </View>
+                <Text className={`font-medium ${textPrimary}`}>Dark Mode</Text>
+             </View>
+             
+             {/* Simple Custom Switch UI */}
+             <View className={`w-10 h-6 rounded-full justify-center px-1 ${isDark ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <View className={`w-4 h-4 bg-white rounded-full shadow-sm ${isDark ? 'self-end' : 'self-start'}`} />
+             </View>
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
 
-      {/* Footer Sign Out */}
-      <View className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+      {/* --- FOOTER ACTIONS --- */}
+      <View className={`px-6 py-6 border-t ${borderColor} ${bgMain}`}>
         {isAuthenticated ? (
           <TouchableOpacity
             onPress={handleLogout}
-            className="w-full py-3 border border-red-200 bg-white rounded-lg"
+            className="flex-row items-center justify-center py-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50"
           >
-            <Text className="text-center text-sm font-bold text-red-600">Sign Out</Text>
+            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+            <Text className="ml-2 font-bold text-red-500">Log Out</Text>
           </TouchableOpacity>
         ) : (
-          <View className="flex-row gap-3">
-            <TouchableOpacity
-              onPress={() => handleNavigation('Login')}
-              className="flex-1 py-3 bg-white border border-gray-200 rounded-lg"
-            >
-              <Text className="text-center text-sm font-bold text-gray-900">Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleNavigation('SignUp')}
-              className="flex-1 py-3 bg-black rounded-lg"
-            >
-              <Text className="text-center text-sm font-bold text-white">Sign Up</Text>
-            </TouchableOpacity>
+          <View className="flex-row gap-x-4">
+             <TouchableOpacity 
+                onPress={() => handleNavigation('Login')}
+                className={`flex-1 py-3 rounded-xl border ${borderColor} items-center`}
+             >
+                <Text className={`font-bold ${textPrimary}`}>Log In</Text>
+             </TouchableOpacity>
+             <TouchableOpacity 
+                onPress={() => handleNavigation('SignUp')}
+                className="flex-1 py-3 rounded-xl bg-pink-600 items-center shadow-md shadow-pink-200"
+             >
+                <Text className="font-bold text-white">Sign Up</Text>
+             </TouchableOpacity>
           </View>
         )}
+        <Text className={`text-center text-[10px] mt-4 ${textSecondary}`}>
+            App Version 1.0.2 • StyleTrending
+        </Text>
       </View>
-    </View>
+
+    </SafeAreaView>
   );
 });
 
-DrawerContent.displayName = 'DrawerContent';
-
 export default DrawerContent;
-

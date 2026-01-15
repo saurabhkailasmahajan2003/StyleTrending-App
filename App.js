@@ -11,19 +11,25 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { WishlistProvider } from './src/context/WishlistContext';
+import { NotificationProvider } from './src/context/NotificationContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
   return (
     <>
-      <StatusBar style="light" />
-      <AuthProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <AppNavigator />
-          </WishlistProvider>
-        </CartProvider>
-      </AuthProvider>
+      <StatusBar style="auto" />
+      <ThemeProvider>
+        <AuthProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <NotificationProvider>
+                <AppNavigator />
+              </NotificationProvider>
+            </WishlistProvider>
+          </CartProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </>
   );
 }

@@ -1,35 +1,77 @@
 /**
- * Home Header Component
- * Matches the web design with top bar, logo, and icons
+ * Home Header Component - Professional & Animated
+ * Retains exact functionality but upgrades UI/UX
  */
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { DrawerActions } from '@react-navigation/native';
+import React, { useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  Animated, 
+  Pressable, 
+  StyleSheet, 
+  Platform 
+} from 'react-native';
+import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
+
+// --- ANIMATED BUTTON COMPONENT ---
+// Creates that smooth "shrink" effect seen in professional apps like App Store/Cred
+const ScalePress = ({ children, onPress, style, scaleTo = 0.92 }) => {
+  const scaleValue = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleValue, {
+      toValue: scaleTo,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={onPress}
+      style={({ pressed }) => [style, { opacity: pressed ? 0.8 : 1 }]}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 const HomeHeader = () => {
   const navigation = useNavigation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth(); // Kept for logic preservation
+  const { unreadCount } = useNotifications();
+  const { colors, isDark } = useTheme();
 
   const openDrawer = () => {
-    // Find the drawer navigator in the navigation hierarchy
+    // Exact logic preserved from your snippet
     let nav = navigation;
-
-    // Traverse up the navigation tree to find the drawer
     while (nav) {
       try {
         nav.dispatch(DrawerActions.openDrawer());
-        return; // Successfully opened drawer
+        return;
       } catch (error) {
-        // Try parent navigator
         nav = nav.getParent();
         if (!nav) break;
       }
     }
-
-    // If drawer not found, try direct dispatch
     try {
       navigation.dispatch(DrawerActions.openDrawer());
     } catch (error) {
@@ -37,44 +79,113 @@ const HomeHeader = () => {
     }
   };
 
+  // Dynamic Styles based on theme
+  const containerStyle = {
+    backgroundColor: colors.background,
+  };
+
   return (
-    <View className="bg-white">
-      {/* Main Header */}
-      <View className="bg-white px-4 py-3 flex-row justify-between items-center border-b border-gray-100">
-        {/* Logo */}
-        <TouchableOpacity onPress={() => navigation.navigate('Home')} activeOpacity={0.8}>
-          <View className="flex-row items-center">
-
-            
-          </View>
-          <Text className="text-xl font-bold text-black ml-3">StyleTrending</Text>
-
-        </TouchableOpacity>
-
-        {/* Icons */}
-        <View className="flex-row items-center gap-4">
-          {/* Profile */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Profile')}
-            activeOpacity={0.7}
-            className="p-2"
-          >
-            <Ionicons name="person-outline" size={22} color="#000" />
-          </TouchableOpacity>
-
-          {/* Hamburger Menu - Opens Drawer */}
-          <TouchableOpacity
-            onPress={openDrawer}
-            activeOpacity={0.7}
-            className="p-2"
-          >
-            <Ionicons name="menu-outline" size={28} color="#000" />
-          </TouchableOpacity>
+    <View style={[styles.container, containerStyle]}>
+      
+      {/* --- LOGO SECTION --- */}
+      <ScalePress onPress={() => navigation.navigate('Home')} scaleTo={0.98}>
+        <View style={styles.logoContainer}>
+          <Text style={[styles.logoText, { color: colors.text }]}>
+            Style<Text style={{ color: '#EC4899' }}>Trending</Text>
+          </Text>
         </View>
+      </ScalePress>
+
+      {/* --- ICONS SECTION --- */}
+      <View style={styles.iconGroup}>
+        
+        {/* Notifications */}
+        <ScalePress onPress={() => navigation.navigate('Notifications')} style={styles.iconWrapper}>
+          <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          {unreadCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.background }]}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </ScalePress>
+
+        {/* Profile */}
+        <ScalePress onPress={() => navigation.navigate('Profile')} style={styles.iconWrapper}>
+          <Ionicons name="person-outline" size={24} color={colors.text} />
+        </ScalePress>
+
+        {/* Hamburger Menu */}
+        <ScalePress onPress={openDrawer} style={styles.iconWrapper}>
+           {/* Adjusted size slightly to match visual weight of other icons */}
+          <Ionicons name="menu-outline" size={26} color={colors.text} />
+        </ScalePress>
+
       </View>
     </View>
   );
 };
 
-export default HomeHeader;
+// --- PROFESSIONAL STYLES ---
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 0,
+    // Modern subtle shadow for depth
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoText: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5, // Tight lettering creates a "brand" look
+  },
+  iconGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12, // Consistent spacing between icons
+  },
+  iconWrapper: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5, // Adds a "cutout" effect against the icon
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 10,
+  },
+});
 
+export default HomeHeader;

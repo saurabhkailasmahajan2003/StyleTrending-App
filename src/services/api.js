@@ -75,8 +75,19 @@ const apiRequest = async (endpoint, options = {}) => {
       const status = error.response.status;
       const errorMessage = error.response.data?.message || `Server error (${status})`;
       
-      console.error(`❌ API Error [${status}]: ${endpoint}`);
-      console.error(`   ${errorMessage}`);
+      // 404s are often expected (e.g., when searching for products across categories)
+      // Log them as warnings instead of errors to reduce console noise
+      if (status === 404) {
+        // Only log 404s for product endpoints as warnings (expected behavior)
+        if (endpoint.includes('/products/') || endpoint.includes('/product/')) {
+          // Suppress 404 logs for product lookups - they're expected during category searches
+        } else {
+          console.warn(`⚠️ API Warning [404]: ${endpoint} - ${errorMessage}`);
+        }
+      } else {
+        console.error(`❌ API Error [${status}]: ${endpoint}`);
+        console.error(`   ${errorMessage}`);
+      }
       
       const apiError = new Error(errorMessage);
       apiError.response = { 

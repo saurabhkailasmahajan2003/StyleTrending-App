@@ -16,15 +16,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../context/CartContext';
+import { useTheme } from '../context/ThemeContext';
 import BottomNavBar from '../components/BottomNavBar';
 
 const CartScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const { cart, removeFromCart, updateQuantity, getCartTotal, isLoading } = useCart();
+  const { colors, isDark } = useTheme();
   const [promoCode, setPromoCode] = useState('');
   const [showPromoInput, setShowPromoInput] = useState(false);
+  const scrollViewRef = React.useRef(null);
 
   // Free Shipping Threshold logic (same as web)
   const cartTotal = getCartTotal();
@@ -32,36 +36,49 @@ const CartScreen = () => {
   const progress = Math.min((cartTotal / freeShippingThreshold) * 100, 100);
   const remainingForFreeShip = freeShippingThreshold - cartTotal;
 
+  // Handle scroll to top when tab is pressed
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.scrollToTop && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        // Clear the param to prevent scrolling on every focus
+        navigation.setParams({ scrollToTop: undefined });
+      }
+    }, [route.params?.scrollToTop, navigation])
+  );
+
   // Empty State
   if (!isLoading && cart.length === 0) {
     return (
-      <View className="flex-1 bg-gray-50">
-        <SafeAreaView className="bg-white" edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+        <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
           {/* Header */}
-          <View className="flex-row items-center justify-between py-3 bg-white border-b border-gray-200" style={{ paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 }}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
-              className="w-10 h-10 justify-center items-center"
+              style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+              activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={24} color="#111827" />
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text className="flex-1 text-base font-semibold text-gray-900 text-center">Shopping Bag</Text>
-            <View className="w-10" />
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: colors.text, textAlign: 'center' }}>Shopping Bag</Text>
+            <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
-        <View className="flex-1 justify-center items-center p-5">
-          <View className="w-20 h-20 bg-white rounded-full justify-center items-center mb-6 shadow-sm">
-            <Text className="text-4xl">🛒</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: 80, height: 80, backgroundColor: colors.card, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+            <Text style={{ fontSize: 40 }}>🛒</Text>
           </View>
-          <Text className="text-2xl font-semibold text-gray-900 mb-2">Your shopping bag is empty</Text>
-          <Text className="text-sm text-gray-500 text-center mb-8 max-w-[300px]">
+          <Text style={{ fontSize: 24, fontWeight: '600', color: colors.text, marginBottom: 8 }}>Your shopping bag is empty</Text>
+          <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 32, maxWidth: 300 }}>
             Add items to your bag to continue shopping.
           </Text>
           <TouchableOpacity
             onPress={() => navigation.navigate('Home')}
-            className="bg-gray-900 px-6 py-3 rounded-lg"
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+            activeOpacity={0.8}
           >
-            <Text className="text-white text-sm font-semibold">Continue Shopping</Text>
+            <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -100,219 +117,346 @@ const CartScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <SafeAreaView className="bg-white" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+      <SafeAreaView style={{ backgroundColor: colors.background }} edges={['top']}>
         {/* Header */}
-        <View className="flex-row items-center justify-between py-3 bg-white border-b border-gray-200" style={{ paddingHorizontal: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 }}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            className="w-10 h-10 justify-center items-center"
+            style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+            activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={24} color="#111827" />
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="flex-1 text-base font-semibold text-gray-900 text-center">Shopping Bag</Text>
-          <View className="w-10" />
+          <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: colors.text, textAlign: 'center' }}>Shopping Bag</Text>
+          <View style={{ width: 40 }} />
         </View>
       </SafeAreaView>
 
       {isLoading ? (
-        <View className="flex-1 justify-center items-center bg-gray-50">
-          <ActivityIndicator size="large" color="#000" />
-          <Text className="mt-3 text-sm text-gray-500">Loading cart...</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundSecondary }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading cart...</Text>
         </View>
       ) : (
         <ScrollView
-          className="flex-1 bg-gray-50"
+          ref={scrollViewRef}
+          style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Cart Info */}
-          <View className="mb-4">
-            <Text className="text-2xl font-semibold text-gray-900 mb-1">Shopping Bag</Text>
-            <Text className="text-sm text-gray-500">
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: '600', color: colors.text, marginBottom: 4 }}>Shopping Bag</Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary }}>
               {cart.length} {cart.length === 1 ? 'item' : 'items'}
             </Text>
           </View>
 
           {/* Free Shipping Progress Bar */}
-          <View className="bg-white p-4 rounded-lg border border-gray-200 mb-4 shadow-sm">
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-sm font-medium text-gray-700 flex-1">
-                {remainingForFreeShip > 0
-                  ? `Add ₹${remainingForFreeShip.toLocaleString()} more for free shipping`
-                  : '✓ Free shipping unlocked'}
-              </Text>
-              {remainingForFreeShip > 0 && (
-                <Text className="text-xs font-semibold text-gray-500">
-                  {Math.round(progress)}%
+          <View style={{ 
+            backgroundColor: colors.card, 
+            padding: 20, 
+            borderRadius: 16, 
+            borderWidth: 1, 
+            borderColor: colors.border, 
+            marginBottom: 20,
+            shadowColor: colors.shadow,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 4,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 20, 
+                backgroundColor: remainingForFreeShip <= 0 ? colors.success + '20' : colors.primary + '20',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 12,
+              }}>
+                <Ionicons 
+                  name={remainingForFreeShip <= 0 ? "checkmark-circle" : "truck-outline"} 
+                  size={24} 
+                  color={remainingForFreeShip <= 0 ? colors.success : colors.primary} 
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 4 }}>
+                  {remainingForFreeShip > 0
+                    ? `Add ₹${remainingForFreeShip.toLocaleString()} more for free shipping`
+                    : 'Free shipping unlocked! 🎉'}
                 </Text>
-              )}
+                {remainingForFreeShip > 0 && (
+                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                    {Math.round(progress)}% complete
+                  </Text>
+                )}
+              </View>
             </View>
-            <View className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <View style={{ width: '100%', height: 10, backgroundColor: colors.backgroundTertiary, borderRadius: 5, overflow: 'hidden' }}>
               <View
-                className="h-full rounded-full"
                 style={{
+                  height: '100%',
+                  borderRadius: 5,
                   width: `${progress}%`,
-                  backgroundColor: remainingForFreeShip > 0 ? '#374151' : '#10b981',
+                  backgroundColor: remainingForFreeShip > 0 ? colors.primary : colors.success,
                 }}
               />
             </View>
           </View>
 
           {/* Cart Items */}
-          <View className="bg-white rounded-lg border border-gray-200 mb-4 shadow-sm">
-            {cart.map((item) => {
-              const product = item.product || item;
-              const itemId = item._id || item.id;
+          {cart.map((item, index) => {
+            const product = item.product || item;
+            const itemId = item._id || item.id;
 
-              // Normalize image - handle both images array and single image
-              let productImage = '';
-              if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                productImage = product.images[0]?.url || product.images[0] || '';
-              } else if (typeof product.images === 'object' && product.images !== null) {
-                productImage = product.images.image1 || product.images.url || Object.values(product.images)[0] || '';
-              } else if (product.image) {
-                productImage = product.image;
-              } else if (product.thumbnail) {
-                productImage = product.thumbnail;
-              }
+            // Normalize image - handle both images array and single image
+            let productImage = '';
+            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+              productImage = product.images[0]?.url || product.images[0] || '';
+            } else if (typeof product.images === 'object' && product.images !== null) {
+              productImage = product.images.image1 || product.images.url || Object.values(product.images)[0] || '';
+            } else if (product.image) {
+              productImage = product.image;
+            } else if (product.thumbnail) {
+              productImage = product.thumbnail;
+            }
 
-              // Normalize price
-              const productPrice = product.finalPrice || product.price || product.mrp || 0;
-              const itemTotal = productPrice * item.quantity;
+            // Normalize price
+            const productPrice = product.finalPrice || product.price || product.mrp || 0;
+            const originalPrice = product.originalPrice || product.mrp || 0;
+            const hasDiscount = originalPrice > productPrice && productPrice > 0;
+            const itemTotal = productPrice * item.quantity;
 
-              return (
-                <View key={itemId} className="flex-row p-4 border-b border-gray-100">
+            return (
+              <View 
+                key={itemId} 
+                style={{ 
+                  backgroundColor: colors.card, 
+                  borderRadius: 12, 
+                  borderWidth: 1, 
+                  borderColor: colors.border, 
+                  marginBottom: 12, 
+                  padding: 16,
+                  shadowColor: colors.shadow,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
+              >
+                <View style={{ flexDirection: 'row' }}>
                   {/* Product Image */}
-                  <View className="w-20 h-20 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 mr-3">
-                    <Image
-                      source={{ uri: productImage }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate('ProductDetail', {
+                        productId: itemId,
+                        category: product.category || 'shop',
+                      })
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.backgroundTertiary, borderWidth: 1, borderColor: colors.border }}>
+                      <Image
+                        source={{ uri: productImage }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </TouchableOpacity>
 
                   {/* Product Info */}
-                  <View className="flex-1 justify-between">
-                    <TouchableOpacity
-                      onPress={() =>
-                        navigation.navigate('ProductDetail', {
-                          productId: itemId,
-                          category: product.category || 'shop',
-                        })
-                      }
-                    >
-                      <Text className="text-sm font-medium text-gray-900 mb-1" numberOfLines={2}>
-                        {product.name || 'Product'}
-                      </Text>
-                    </TouchableOpacity>
-                    {product.brand && (
-                      <Text className="text-xs text-gray-500 mb-1">{product.brand}</Text>
-                    )}
-                    <Text className="text-sm font-semibold text-gray-900 mb-2">
-                      ₹{productPrice.toLocaleString()}
-                    </Text>
-
-                    {/* Quantity Controls */}
-                    <View className="flex-row items-center border border-gray-300 rounded-md w-[100px] h-8">
+                  <View style={{ flex: 1, marginLeft: 12, justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1 }}>
                       <TouchableOpacity
-                        onPress={() => handleQuantityChange(itemId, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className={`w-8 h-8 justify-center items-center border-r border-gray-300 ${item.quantity <= 1 ? 'opacity-40' : ''}`}
+                        onPress={() =>
+                          navigation.navigate('ProductDetail', {
+                            productId: itemId,
+                            category: product.category || 'shop',
+                          })
+                        }
+                        activeOpacity={0.7}
                       >
-                        <Text className={`text-lg text-gray-700 font-medium ${item.quantity <= 1 ? 'text-gray-400' : ''}`}>
-                          −
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 4 }} numberOfLines={2}>
+                          {product.name || 'Product'}
                         </Text>
                       </TouchableOpacity>
-                      <Text className="flex-1 text-center text-sm font-semibold text-gray-900">
-                        {item.quantity}
-                      </Text>
+                      {product.brand && (
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>{product.brand}</Text>
+                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                          ₹{productPrice.toLocaleString()}
+                        </Text>
+                        {hasDiscount && originalPrice > 0 && (
+                          <Text style={{ fontSize: 13, color: colors.textTertiary, textDecorationLine: 'line-through' }}>
+                            ₹{originalPrice.toLocaleString()}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Quantity Controls & Actions */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                      {/* Quantity Controls */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: colors.border, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.backgroundTertiary }}>
+                        <TouchableOpacity
+                          onPress={() => handleQuantityChange(itemId, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                          style={{ 
+                            width: 36, 
+                            height: 36, 
+                            justifyContent: 'center', 
+                            alignItems: 'center',
+                            backgroundColor: item.quantity <= 1 ? 'transparent' : colors.background,
+                            opacity: item.quantity <= 1 ? 0.4 : 1 
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="remove" size={18} color={colors.text} />
+                        </TouchableOpacity>
+                        <View style={{ width: 40, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                            {item.quantity}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleQuantityChange(itemId, item.quantity + 1)}
+                          style={{ 
+                            width: 36, 
+                            height: 36, 
+                            justifyContent: 'center', 
+                            alignItems: 'center',
+                            backgroundColor: colors.background,
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add" size={18} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Remove Button */}
                       <TouchableOpacity
-                        onPress={() => handleQuantityChange(itemId, item.quantity + 1)}
-                        className="w-8 h-8 justify-center items-center border-l border-gray-300"
+                        onPress={() => handleRemoveItem(itemId)}
+                        style={{ 
+                          paddingHorizontal: 12, 
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: colors.error + '15',
+                          borderWidth: 1,
+                          borderColor: colors.error + '30',
+                        }}
+                        activeOpacity={0.7}
                       >
-                        <Text className="text-lg text-gray-700 font-medium">+</Text>
+                        <Ionicons name="trash-outline" size={16} color={colors.error} />
                       </TouchableOpacity>
                     </View>
                   </View>
-
-                  {/* Item Total & Remove */}
-                  <View className="items-end justify-between ml-3">
-                    <Text className="text-base font-semibold text-gray-900 mb-2">
-                      ₹{itemTotal.toLocaleString()}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemoveItem(itemId)}
-                      className="py-1"
-                    >
-                      <Text className="text-xs text-red-600 font-medium">Remove</Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
-              );
-            })}
-          </View>
+
+                {/* Item Total */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderLight }}>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>Item Total</Text>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>
+                    ₹{itemTotal.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
 
           {/* Order Summary */}
-          <View className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">
-              Order Summary
-            </Text>
+          <View style={{ 
+            backgroundColor: colors.card, 
+            borderRadius: 16, 
+            borderWidth: 1, 
+            borderColor: colors.border, 
+            padding: 20, 
+            marginBottom: 16,
+            shadowColor: colors.shadow,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 4,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: colors.border }}>
+              <Ionicons name="receipt-outline" size={24} color={colors.primary} style={{ marginRight: 12 }} />
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
+                Order Summary
+              </Text>
+            </View>
 
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-sm text-gray-500">Subtotal</Text>
-              <Text className="text-sm font-medium text-gray-900">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>Subtotal</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>
                 ₹{cartTotal.toLocaleString()}
               </Text>
             </View>
 
-            <View className="flex-row justify-between items-center mb-3">
-              <View className="flex-row items-center gap-1">
-                <Text className="text-sm text-gray-500">Shipping</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary }}>Shipping</Text>
                 {remainingForFreeShip <= 0 && (
-                  <Text className="text-sm text-green-600">✓</Text>
+                  <Text style={{ fontSize: 14, color: colors.success }}>✓</Text>
                 )}
               </View>
-              <Text className={`text-sm font-medium ${remainingForFreeShip <= 0 ? 'text-green-600' : 'text-gray-900'}`}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: remainingForFreeShip <= 0 ? colors.success : colors.text }}>
                 {remainingForFreeShip <= 0 ? 'Free' : 'Calculated at checkout'}
               </Text>
             </View>
 
-            <View className="flex-row justify-between items-center pb-3 border-b border-gray-200 mb-3">
-              <Text className="text-sm text-gray-500">Tax Estimate</Text>
-              <Text className="text-sm font-medium text-gray-900">₹0.00</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>Tax Estimate</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>₹0.00</Text>
             </View>
 
-            <View className="flex-row justify-between items-center mt-2 mb-1">
-              <Text className="text-base font-semibold text-gray-900">Total</Text>
-              <Text className="text-xl font-semibold text-gray-900">
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginTop: 16, 
+              marginBottom: 8,
+              paddingTop: 16,
+              paddingHorizontal: 12,
+              paddingVertical: 12,
+              backgroundColor: colors.backgroundTertiary,
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor: colors.primary,
+            }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Total</Text>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>
                 ₹{cartTotal.toLocaleString()}
               </Text>
             </View>
-            <Text className="text-xs text-gray-500 mb-4">Including GST</Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 16, textAlign: 'center' }}>Including GST</Text>
 
             {/* Promo Code Section */}
-            <View className="mt-4 pt-4 border-t border-gray-100">
+            <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderLight }}>
               <TouchableOpacity
                 onPress={() => setShowPromoInput(!showPromoInput)}
-                className="flex-row justify-between items-center"
+                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                activeOpacity={0.7}
               >
-                <Text className="text-sm font-medium text-gray-900">
+                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>
                   Do you have a promo code?
                 </Text>
-                <Text className="text-xs text-gray-500">{showPromoInput ? '▲' : '▼'}</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>{showPromoInput ? '▲' : '▼'}</Text>
               </TouchableOpacity>
               {showPromoInput && (
-                <View className="flex-row mt-3 gap-2">
+                <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
                   <TextInput
                     value={promoCode}
                     onChangeText={setPromoCode}
                     placeholder="Enter code"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900"
-                    placeholderTextColor="#9ca3af"
+                    style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, backgroundColor: colors.card }}
+                    placeholderTextColor={colors.textTertiary}
                   />
-                  <TouchableOpacity className="bg-gray-100 px-4 py-2.5 rounded-lg">
-                    <Text className="text-xs font-bold text-gray-900 uppercase">Apply</Text>
+                  <TouchableOpacity style={{ backgroundColor: colors.backgroundTertiary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }} activeOpacity={0.7}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text, textTransform: 'uppercase' }}>Apply</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -322,20 +466,53 @@ const CartScreen = () => {
           {/* Checkout Button */}
           <TouchableOpacity
             onPress={handleCheckout}
-            className="bg-gray-900 py-4 rounded-lg items-center mb-2"
+            style={{ 
+              backgroundColor: colors.primary, 
+              paddingVertical: 18, 
+              borderRadius: 12, 
+              alignItems: 'center', 
+              marginBottom: 12,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
+            activeOpacity={0.8}
           >
-            <Text className="text-white text-base font-semibold">Proceed to Checkout</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 17, fontWeight: '700' }}>Proceed to Checkout</Text>
+              <Ionicons name="arrow-forward" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
+            </View>
           </TouchableOpacity>
-          <Text className="text-xs text-gray-500 text-center mb-4">
-            Free shipping on orders over ₹1,000
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 6 }}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
+            <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
+              Free shipping on orders over ₹1,000 • Secure checkout
+            </Text>
+          </View>
 
           {/* Payment Icons */}
-          <View className="items-center pt-4 border-t border-gray-200">
-            <Text className="text-xs font-medium text-gray-500 mb-3">Secure Payment</Text>
-            <View className="flex-row gap-4">
-              <Text className="text-2xl">💳</Text>
-              <Text className="text-2xl">💳</Text>
+          <View style={{ 
+            alignItems: 'center', 
+            paddingTop: 20, 
+            paddingBottom: 8,
+            borderTopWidth: 1, 
+            borderTopColor: colors.border 
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Accepted Payment Methods
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+              <View style={{ width: 50, height: 30, backgroundColor: colors.backgroundTertiary, borderRadius: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>💳</Text>
+              </View>
+              <View style={{ width: 50, height: 30, backgroundColor: colors.backgroundTertiary, borderRadius: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>💳</Text>
+              </View>
+              <View style={{ width: 50, height: 30, backgroundColor: colors.backgroundTertiary, borderRadius: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>💳</Text>
+              </View>
             </View>
           </View>
         </ScrollView>

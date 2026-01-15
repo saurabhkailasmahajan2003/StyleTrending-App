@@ -1,7 +1,8 @@
 /**
- * Profile Screen - React Native Version
+ * Profile Screen - Premium Monochrome Edition
+ * Stack: React Native + Tailwind CSS (NativeWind)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,24 +13,42 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Platform,
+  LayoutAnimation,
+  UIManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import { profileAPI, orderAPI } from '../services/api';
-import HomeHeader from '../components/HomeHeader';
 import BottomNavBar from '../components/BottomNavBar';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  
+  // Contexts
   const { user, logout, isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
+  const { theme, isDark, colors, toggleTheme } = useTheme();
+  
+  // State
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [orders, setOrders] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Form State
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -39,18 +58,37 @@ const ProfileScreen = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const scrollViewRef = useRef(null);
+
+  // --- THEME CONSTANTS ---
+  const bgMain = isDark ? 'bg-black' : 'bg-white';
+  const bgCard = isDark ? 'bg-neutral-900' : 'bg-white';
+  const textPrimary = isDark ? 'text-white' : 'text-black';
+  const textSecondary = isDark ? 'text-neutral-400' : 'text-gray-500';
+  const borderCol = isDark ? 'border-neutral-800' : 'border-gray-200';
+  const inputBg = isDark ? 'bg-neutral-800' : 'bg-gray-50';
+
+  // --- EFFECT HOOKS ---
   useEffect(() => {
     if (isAuthenticated) {
       loadProfile();
-      if (activeTab === 'orders') {
-        loadOrders();
-      }
+      if (activeTab === 'orders') loadOrders();
     }
   }, [isAuthenticated, activeTab]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.scrollToTop && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        navigation.setParams({ scrollToTop: undefined });
+      }
+    }, [route.params?.scrollToTop])
+  );
+
+  // --- DATA LOADERS ---
   const loadProfile = async () => {
     try {
-      setIsLoading(true);
+      if(!profileData) setIsLoading(true); // Only show spinner on first load
       const response = await profileAPI.getProfile();
       if (response.success) {
         setProfileData(response.data);
@@ -60,16 +98,11 @@ const ProfileScreen = () => {
           email: userData.email || '',
           phone: userData.phone || '',
           address: userData.address
-            ? `${userData.address.address || ''}, ${userData.address.city || ''}, ${userData.address.state || ''}, ${userData.address.country || 'India'}`
-                .replace(/^,\s*|,\s*$/g, '')
-                .replace(/,\s*,/g, ',')
+            ? `${userData.address.address || ''}, ${userData.address.city || ''}, ${userData.address.state || ''}, ${userData.address.country || 'India'}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',')
             : '',
         });
-      } else {
-        setError(response.message || 'Failed to load profile data.');
       }
     } catch (err) {
-      setError('Failed to load profile data.');
       console.error('Profile load error:', err);
     } finally {
       setIsLoading(false);
@@ -79,9 +112,7 @@ const ProfileScreen = () => {
   const loadOrders = async () => {
     try {
       const response = await orderAPI.getOrders();
-      if (response.success) {
-        setOrders(response.data.orders || []);
-      }
+      if (response.success) setOrders(response.data.orders || []);
     } catch (err) {
       console.error('Orders load error:', err);
     }
@@ -89,18 +120,13 @@ const ProfileScreen = () => {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    const promises = [loadProfile()];
-    if (activeTab === 'orders') {
-      promises.push(loadOrders());
-    }
-    await Promise.all(promises);
+    await Promise.all([loadProfile(), activeTab === 'orders' ? loadOrders() : Promise.resolve()]);
     setIsRefreshing(false);
   };
 
+  // --- HANDLERS ---
   const handleUpdateProfile = async () => {
-    setError('');
-    setSuccess('');
-
+    setError(''); setSuccess('');
     try {
       let addressObj = null;
       if (formData.address && formData.address.trim()) {
@@ -115,83 +141,66 @@ const ProfileScreen = () => {
         }
       }
 
-      const updateData = {
-        name: formData.name,
-        phone: formData.phone,
-      };
-
+      const updateData = { name: formData.name, phone: formData.phone };
       if (addressObj) updateData.address = addressObj;
 
       const response = await profileAPI.updateProfile(updateData);
       if (response.success) {
-        setSuccess('Profile updated successfully!');
+        setSuccess('Profile updated successfully.');
         setIsEditing(false);
         await loadProfile();
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError(response.message || 'Failed to update profile.');
+        setError(response.message || 'Update failed.');
       }
     } catch (err) {
-      setError('Failed to update profile.');
-      console.error('Update error:', err);
+      setError('An unexpected error occurred.');
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          },
-        },
-      ]
-    );
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => {
+          await logout();
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }},
+    ]);
   };
 
+  const handleTabChange = (tabId) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setActiveTab(tabId);
+  };
+
+  // --- UTILS ---
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-  const getStatusColor = (status) => {
-    const statusColors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-    };
-    return statusColors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  const getStatusStyle = (status) => {
+    const s = status?.toLowerCase();
+    switch(s) {
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'shipped': return 'bg-blue-100 text-blue-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'processing': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   const displayName = user?.name || profileData?.user?.name || 'User';
   const userInitial = displayName.charAt(0).toUpperCase();
-  const userEmail = user?.email || profileData?.user?.email || '';
 
+  // --- RENDER BLOCKS ---
+  
   if (!isAuthenticated) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500 mb-4">Please log in to view your profile</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Login')}
-          className="bg-gray-900 px-6 py-3 rounded-full"
-        >
-          <Text className="text-white font-semibold">Go to Login</Text>
+      <View className={`flex-1 justify-center items-center ${bgMain}`}>
+        <Text className={`mb-6 ${textSecondary}`}>Please log in to view your profile</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')} className={`px-8 py-3 bg-black dark:bg-white rounded-full`}>
+          <Text className={`font-bold ${isDark ? 'text-black' : 'text-white'}`}>LOG IN</Text>
         </TouchableOpacity>
       </View>
     );
@@ -199,291 +208,228 @@ const ProfileScreen = () => {
 
   if (isLoading && !profileData) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator size="large" color="#000" />
+      <View className={`flex-1 justify-center items-center ${bgMain}`}>
+        <ActivityIndicator size="large" color={isDark ? 'white' : 'black'} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <SafeAreaView className="bg-white">
-        <HomeHeader />
-      </SafeAreaView>
-
+    <View className={`flex-1 ${bgMain}`}>
+      <SafeAreaView edges={['top']} className={bgMain} />
+      
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={isDark ? 'white' : 'black'} />}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Profile Header */}
-        <View className="bg-white py-6 border-b border-gray-100" style={{ paddingHorizontal: 16 }}>
-          <View className="flex-row items-center mb-4">
-            <View className="w-16 h-16 rounded-full bg-gray-900 items-center justify-center mr-4">
-              <Text className="text-white text-2xl font-bold">{userInitial}</Text>
+        
+        {/* --- HEADER IDENTITY --- */}
+        <View className={`px-6 pt-6 pb-8 border-b ${borderCol}`}>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-x-5">
+              <View className={`h-16 w-16 rounded-full items-center justify-center ${isDark ? 'bg-neutral-800' : 'bg-black'}`}>
+                <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-white'}`}>{userInitial}</Text>
+              </View>
+              <View>
+                <Text className={`text-xl font-bold ${textPrimary}`}>{displayName}</Text>
+                <Text className={`text-sm ${textSecondary}`}>{user?.email}</Text>
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="text-xl font-bold text-gray-900">{displayName}</Text>
-              <Text className="text-sm text-gray-500 mt-1">{userEmail}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleLogout}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            >
-              <Text className="text-sm font-medium text-gray-700">Sign Out</Text>
+            <TouchableOpacity onPress={handleLogout} className={`p-2 rounded-full ${isDark ? 'bg-neutral-800' : 'bg-gray-100'}`}>
+               <Ionicons name="log-out-outline" size={20} color={isDark ? 'white' : 'black'} />
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Tab Navigation */}
-          <View className="flex-row gap-2">
+        {/* --- TABS --- */}
+        <View className="py-6">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}>
             {[
               { id: 'profile', label: 'Profile' },
               { id: 'orders', label: 'Orders' },
+              { id: 'notifications', label: 'Notifications', badge: unreadCount },
               { id: 'settings', label: 'Settings' },
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.id}
-                onPress={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-full ${
-                  activeTab === tab.id
-                    ? 'bg-gray-900'
-                    : 'bg-gray-100'
-                }`}
+                onPress={() => tab.id === 'notifications' ? navigation.navigate('Notifications') : handleTabChange(tab.id)}
+                className={`px-5 py-2.5 rounded-full border ${activeTab === tab.id ? (isDark ? 'bg-white border-white' : 'bg-black border-black') : (isDark ? 'bg-transparent border-neutral-700' : 'bg-white border-gray-200')}`}
               >
-                <Text
-                  className={`text-sm font-semibold ${
-                    activeTab === tab.id
-                      ? 'text-white'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {tab.label}
-                </Text>
+                <View className="flex-row items-center gap-x-2">
+                  <Text className={`font-semibold text-xs uppercase tracking-wider ${activeTab === tab.id ? (isDark ? 'text-black' : 'text-white') : textPrimary}`}>
+                    {tab.label}
+                  </Text>
+                  {tab.badge > 0 && (
+                    <View className="bg-red-500 w-2 h-2 rounded-full" />
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
-        {/* Success/Error Messages */}
-        {success ? (
-          <View className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3" style={{ marginHorizontal: 16 }}>
-            <Text className="text-green-800 text-sm">{success}</Text>
-          </View>
-        ) : null}
-        {error ? (
-          <View className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3" style={{ marginHorizontal: 16 }}>
-            <Text className="text-red-800 text-sm">{error}</Text>
-          </View>
-        ) : null}
+        {/* --- ALERTS --- */}
+        <View className="px-6">
+          {success ? <Text className="text-green-600 mb-4 bg-green-50 p-3 rounded-lg border border-green-100 text-sm text-center">{success}</Text> : null}
+          {error ? <Text className="text-red-600 mb-4 bg-red-50 p-3 rounded-lg border border-red-100 text-sm text-center">{error}</Text> : null}
+        </View>
 
-        {/* Profile Tab Content */}
+        {/* --- PROFILE CONTENT --- */}
         {activeTab === 'profile' && (
-          <View className="py-6" style={{ paddingHorizontal: 16 }}>
-            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-lg font-bold text-gray-900">Personal Information</Text>
-                {!isEditing ? (
-                  <TouchableOpacity
-                    onPress={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-gray-900 rounded-lg"
-                  >
-                    <Text className="text-white text-sm font-semibold">Edit</Text>
-                  </TouchableOpacity>
+          <View className="px-6">
+            <View className={`flex-row justify-between items-center mb-6`}>
+              <Text className={`text-sm font-bold tracking-widest uppercase ${textSecondary}`}>Personal Details</Text>
+              <TouchableOpacity onPress={() => isEditing ? setIsEditing(false) : setIsEditing(true)}>
+                <Text className={`text-sm font-bold underline ${textPrimary}`}>{isEditing ? 'Cancel' : 'Edit'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="gap-y-6">
+              {/* Name Field */}
+              <View>
+                <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>FULL NAME</Text>
+                {isEditing ? (
+                  <TextInput
+                    value={formData.name}
+                    onChangeText={(t) => setFormData({ ...formData, name: t })}
+                    className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
+                  />
                 ) : (
-                  <View className="flex-row gap-2">
-                    <TouchableOpacity
-                      onPress={() => {
-                        setIsEditing(false);
-                        loadProfile();
-                      }}
-                      className="px-4 py-2 bg-gray-100 rounded-lg"
-                    >
-                      <Text className="text-gray-700 text-sm font-semibold">Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleUpdateProfile}
-                      className="px-4 py-2 bg-gray-900 rounded-lg"
-                    >
-                      <Text className="text-white text-sm font-semibold">Save</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Text className={`text-base font-medium ${textPrimary} py-2`}>{formData.name}</Text>
                 )}
               </View>
 
+              {/* Email Field (Read Only) */}
               <View>
-                <View className="mb-4">
-                  <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Full Name
-                  </Text>
-                  {isEditing ? (
-                    <TextInput
-                      value={formData.name}
-                      onChangeText={(text) => setFormData({ ...formData, name: text })}
-                      className="border border-gray-200 rounded-lg px-4 py-3 text-gray-900 bg-white"
-                      placeholder="Enter your name"
-                    />
-                  ) : (
-                    <Text className="text-gray-900 text-base py-3">
-                      {formData.name || 'Not set'}
-                    </Text>
-                  )}
-                </View>
-
-                <View className="mb-4">
-                  <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Email
-                  </Text>
-                  <Text className="text-gray-900 text-base py-3">{formData.email}</Text>
-                  <Text className="text-xs text-gray-400 mt-1">Email cannot be changed</Text>
-                </View>
-
-                <View className="mb-4">
-                  <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Phone
-                  </Text>
-                  {isEditing ? (
-                    <TextInput
-                      value={formData.phone}
-                      onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                      className="border border-gray-200 rounded-lg px-4 py-3 text-gray-900 bg-white"
-                      placeholder="Enter your phone number"
-                      keyboardType="phone-pad"
-                    />
-                  ) : (
-                    <Text className="text-gray-900 text-base py-3">
-                      {formData.phone || 'Not set'}
-                    </Text>
-                  )}
-                </View>
-
-                <View>
-                  <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Address
-                  </Text>
-                  {isEditing ? (
-                    <TextInput
-                      value={formData.address}
-                      onChangeText={(text) => setFormData({ ...formData, address: text })}
-                      className="border border-gray-200 rounded-lg px-4 py-3 text-gray-900 bg-white"
-                      placeholder="Street, City, State, Country"
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                    />
-                  ) : (
-                    <Text className="text-gray-900 text-base py-3">
-                      {formData.address || 'Not set'}
-                    </Text>
-                  )}
-                </View>
+                <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>EMAIL ADDRESS</Text>
+                <Text className={`text-base font-medium ${textSecondary} py-2 opacity-70`}>{formData.email}</Text>
               </View>
+
+              {/* Phone Field */}
+              <View>
+                <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>PHONE NUMBER</Text>
+                {isEditing ? (
+                  <TextInput
+                    value={formData.phone}
+                    onChangeText={(t) => setFormData({ ...formData, phone: t })}
+                    keyboardType="phone-pad"
+                    className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
+                  />
+                ) : (
+                  <Text className={`text-base font-medium ${textPrimary} py-2`}>{formData.phone || 'Not set'}</Text>
+                )}
+              </View>
+
+              {/* Address Field */}
+              <View>
+                <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>SHIPPING ADDRESS</Text>
+                {isEditing ? (
+                  <TextInput
+                    value={formData.address}
+                    onChangeText={(t) => setFormData({ ...formData, address: t })}
+                    multiline numberOfLines={3}
+                    className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
+                  />
+                ) : (
+                  <Text className={`text-base font-medium ${textPrimary} py-2 leading-6`}>{formData.address || 'No address saved'}</Text>
+                )}
+              </View>
+
+              {isEditing && (
+                <TouchableOpacity onPress={handleUpdateProfile} className={`mt-4 py-4 ${isDark ? 'bg-white' : 'bg-black'} rounded-xl items-center`}>
+                  <Text className={`font-bold uppercase tracking-widest ${isDark ? 'text-black' : 'text-white'}`}>Save Changes</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
 
-        {/* Orders Tab Content */}
+        {/* --- ORDERS CONTENT --- */}
         {activeTab === 'orders' && (
-          <View className="py-6" style={{ paddingHorizontal: 16 }}>
+          <View className="px-6">
+            <Text className={`text-sm font-bold tracking-widest uppercase mb-6 ${textSecondary}`}>Recent Orders</Text>
+            
             {orders.length === 0 ? (
-              <View className="bg-white rounded-2xl p-8 items-center">
-                <Ionicons name="receipt-outline" size={48} color="#9CA3AF" />
-                <Text className="text-gray-500 text-lg font-semibold mt-4">No orders yet</Text>
-                <Text className="text-gray-400 text-sm mt-2 text-center">
-                  Your order history will appear here
-                </Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Home')}
-                  className="mt-6 px-6 py-3 bg-gray-900 rounded-lg"
-                >
-                  <Text className="text-white font-semibold">Start Shopping</Text>
-                </TouchableOpacity>
+              <View className={`p-8 rounded-2xl items-center border border-dashed ${borderCol} ${bgCard}`}>
+                <Ionicons name="cart-outline" size={40} color={isDark ? '#525252' : '#A3A3A3'} />
+                <Text className={`mt-4 font-medium ${textSecondary}`}>No orders yet</Text>
               </View>
             ) : (
-              <View>
-                {orders.map((order, index) => (
-                  <View key={order._id}>
-                    {index > 0 && <View className="h-4" />}
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
-                      className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-                    >
-                      <View className="flex-row justify-between items-start mb-3">
-                        <View className="flex-1">
-                          <Text className="text-sm text-gray-500">
-                            Order #{order.orderNumber || (order._id ? order._id.slice(-8) : 'N/A')}
-                          </Text>
-                          <Text className="text-lg font-bold text-gray-900 mt-1">
-                            ₹{(order.totalAmount && typeof order.totalAmount === 'number' ? order.totalAmount.toLocaleString() : '0')}
-                          </Text>
-                        </View>
-                        <View className={`px-3 py-1 rounded-full ${getStatusColor(order.status)}`}>
-                          <Text className="text-xs font-semibold capitalize">
-                            {order.status || 'Pending'}
-                          </Text>
-                        </View>
+              orders.map((order) => {
+                const statusClass = getStatusStyle(order.status);
+                return (
+                  <TouchableOpacity
+                    key={order._id}
+                    onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
+                    className={`mb-4 p-5 rounded-2xl border ${borderCol} ${bgCard}`}
+                  >
+                    <View className="flex-row justify-between items-start mb-4">
+                      <View>
+                        <Text className={`text-xs font-bold ${textSecondary} mb-1`}>ORDER #{order.orderNumber || order._id?.slice(-6)}</Text>
+                        <Text className={`text-lg font-bold ${textPrimary}`}>₹{order.totalAmount?.toLocaleString()}</Text>
                       </View>
-
-                      <Text className="text-sm text-gray-500 mb-3">
-                        {formatDate(order.createdAt) || 'Date not available'}
-                      </Text>
-
-                      <View className="flex-row items-center justify-between pt-3 border-t border-gray-100">
-                        <Text className="text-sm text-gray-600">
-                          {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                      <View className={`px-3 py-1 rounded-full ${statusClass.split(' ')[0]}`}>
+                         <Text className={`text-[10px] font-bold uppercase ${statusClass.split(' ')[1]}`}>{order.status}</Text>
                       </View>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+                    </View>
+                    
+                    <View className={`flex-row justify-between items-center pt-4 border-t ${borderCol}`}>
+                       <Text className={`text-xs ${textSecondary}`}>{formatDate(order.createdAt)}</Text>
+                       <View className="flex-row items-center gap-1">
+                          <Text className={`text-xs font-medium ${textPrimary}`}>View Details</Text>
+                          <Ionicons name="arrow-forward" size={12} color={isDark ? 'white' : 'black'} />
+                       </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         )}
 
-        {/* Settings Tab Content */}
+        {/* --- SETTINGS CONTENT --- */}
         {activeTab === 'settings' && (
-          <View className="py-6" style={{ paddingHorizontal: 16 }}>
-            <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              {[
-                {
-                  icon: 'notifications-outline',
-                  label: 'Notifications',
-                  onPress: () => Alert.alert('Notifications', 'Notification settings coming soon'),
-                },
-                {
-                  icon: 'lock-closed-outline',
-                  label: 'Privacy & Security',
-                  onPress: () => Alert.alert('Privacy', 'Privacy settings coming soon'),
-                },
-                {
-                  icon: 'help-circle-outline',
-                  label: 'Help & Support',
-                  onPress: () => Alert.alert('Help', 'Support coming soon'),
-                },
-                {
-                  icon: 'document-text-outline',
-                  label: 'Terms & Conditions',
-                  onPress: () => Alert.alert('Terms', 'Terms & Conditions coming soon'),
-                },
-              ].map((item, index) => (
-                <TouchableOpacity
-                  key={item.label}
-                  onPress={item.onPress}
-                  className={`flex-row items-center px-6 py-4 ${
-                    index !== 3 ? 'border-b border-gray-100' : ''
-                  }`}
-                >
-                  <Ionicons name={item.icon} size={24} color="#374151" />
-                  <Text className="text-gray-900 text-base ml-4 flex-1">{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              ))}
-            </View>
+          <View className="px-6">
+             <Text className={`text-sm font-bold tracking-widest uppercase mb-4 ${textSecondary}`}>Preferences</Text>
+             
+             <View className={`rounded-2xl border ${borderCol} ${bgCard} overflow-hidden`}>
+                {[
+                  { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
+                  { 
+                    icon: isDark ? 'sunny-outline' : 'moon-outline', 
+                    label: 'Appearance', 
+                    value: isDark ? 'Dark' : 'Light',
+                    onPress: () => toggleTheme(isDark ? 'light' : 'dark') 
+                  },
+                  { icon: 'shield-checkmark-outline', label: 'Privacy & Security', onPress: () => {} },
+                  { icon: 'document-text-outline', label: 'Terms of Service', onPress: () => {} },
+                  { icon: 'headset-outline', label: 'Help & Support', onPress: () => {} },
+                ].map((item, idx, arr) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={item.onPress}
+                    className={`flex-row items-center justify-between p-4 ${idx !== arr.length - 1 ? 'border-b' : ''} ${borderCol}`}
+                  >
+                    <View className="flex-row items-center gap-4">
+                       <Ionicons name={item.icon} size={22} color={isDark ? 'white' : 'black'} />
+                       <Text className={`font-medium ${textPrimary}`}>{item.label}</Text>
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                       {item.value && <Text className={`text-sm ${textSecondary}`}>{item.value}</Text>}
+                       <Ionicons name="chevron-forward" size={16} color={isDark ? '#525252' : '#A3A3A3'} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+             </View>
+
+             <Text className={`text-center text-xs mt-8 ${textSecondary}`}>
+                Version 1.0.2 • Build 2024
+             </Text>
           </View>
         )}
+
       </ScrollView>
       <BottomNavBar />
     </View>
