@@ -4,7 +4,7 @@
     "slug": "astra-fashion",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767964106/Yellow_Bag_Online_Shop_Logo_1024_x_1024_px_h84fw5.svg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767335138/Black_White_Bold_Simple_Initials_Name_Logo_4_d4iyzt.png",
@@ -20,8 +20,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "https://res.cloudinary.com/dvkxgrcbv/image/upload/v1767335138/Black_White_Bold_Simple_Initials_Name_Logo_4_d4iyzt.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#000000"
       },
       "package": "com.astrafashion.app"
     },

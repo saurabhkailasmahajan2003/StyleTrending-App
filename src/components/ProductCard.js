@@ -163,8 +163,8 @@ const ProductCard = ({ product }) => {
           {/* Price and Add Button Row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginRight: 6 }}>
                   ₹{(finalPrice || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </Text>
                 {hasDiscount && originalPrice > 0 && (
@@ -198,7 +198,7 @@ const ProductCard = ({ product }) => {
                       <Ionicons name="close" size={12} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -2 }}>
                     {sizes.slice(0, 4).map((size) => {
                       const sizeStr = String(size || '');
                       return (
@@ -216,6 +216,8 @@ const ProductCard = ({ product }) => {
                             alignItems: 'center',
                             backgroundColor: isAdding ? colors.backgroundTertiary : colors.card,
                             borderColor: isAdding ? colors.border : colors.border,
+                            marginHorizontal: 2,
+                            marginBottom: 4,
                           }}
                           activeOpacity={0.7}
                         >

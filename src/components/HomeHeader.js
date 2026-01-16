@@ -87,16 +87,15 @@ const HomeHeader = () => {
   return (
     <View style={[styles.container, containerStyle]}>
       
-      {/* --- LOGO SECTION --- */}
-      <ScalePress onPress={() => navigation.navigate('Home')} scaleTo={0.98}>
-        <View style={styles.logoContainer}>
-          <Text style={[styles.logoText, { color: colors.text }]}>
-            Style<Text style={{ color: '#EC4899' }}>Trending</Text>
-          </Text>
-        </View>
+      {/* --- HAMBURGER MENU - LEFT MOST --- */}
+      <ScalePress onPress={openDrawer} style={styles.iconWrapper}>
+        <Ionicons name="menu-outline" size={26} color={colors.text} />
       </ScalePress>
 
-      {/* --- ICONS SECTION --- */}
+      {/* --- CENTER SPACER --- */}
+      <View style={{ flex: 1 }} />
+
+      {/* --- ICONS SECTION - RIGHT SIDE --- */}
       <View style={styles.iconGroup}>
         
         {/* Notifications */}
@@ -116,10 +115,9 @@ const HomeHeader = () => {
           <Ionicons name="person-outline" size={24} color={colors.text} />
         </ScalePress>
 
-        {/* Hamburger Menu */}
-        <ScalePress onPress={openDrawer} style={styles.iconWrapper}>
-           {/* Adjusted size slightly to match visual weight of other icons */}
-          <Ionicons name="menu-outline" size={26} color={colors.text} />
+        {/* Microphone Icon - Right Most */}
+        <ScalePress onPress={() => {}} style={styles.iconWrapper}>
+          <Ionicons name="mic-outline" size={24} color={colors.text} />
         </ScalePress>
 
       </View>

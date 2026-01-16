@@ -72,7 +72,9 @@ const ProfileScreen = () => {
   useEffect(() => {
     if (isAuthenticated) {
       loadProfile();
-      if (activeTab === 'orders') loadOrders();
+      if (activeTab === 'orders') {
+        loadOrders();
+      }
     }
   }, [isAuthenticated, activeTab]);
 
@@ -112,7 +114,9 @@ const ProfileScreen = () => {
   const loadOrders = async () => {
     try {
       const response = await orderAPI.getOrders();
-      if (response.success) setOrders(response.data.orders || []);
+      if (response.success) {
+        setOrders(response.data.orders || []);
+      }
     } catch (err) {
       console.error('Orders load error:', err);
     }
@@ -120,7 +124,10 @@ const ProfileScreen = () => {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadProfile(), activeTab === 'orders' ? loadOrders() : Promise.resolve()]);
+    await Promise.all([
+      loadProfile(),
+      activeTab === 'orders' ? loadOrders() : Promise.resolve()
+    ]);
     setIsRefreshing(false);
   };
 
@@ -160,9 +167,9 @@ const ProfileScreen = () => {
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: async () => {
-          await logout();
+            await logout();
           navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       }},
     ]);
@@ -182,11 +189,11 @@ const ProfileScreen = () => {
   const getStatusStyle = (status) => {
     const s = status?.toLowerCase();
     switch(s) {
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'shipped': return 'bg-blue-100 text-blue-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'processing': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'delivered': return { bg: isDark ? '#064E3B' : '#D1FAE5', text: isDark ? '#6EE7B7' : '#059669' };
+      case 'shipped': return { bg: isDark ? '#1E3A8A' : '#DBEAFE', text: isDark ? '#93C5FD' : '#2563EB' };
+      case 'cancelled': return { bg: isDark ? '#7F1D1D' : '#FEE2E2', text: isDark ? '#FCA5A5' : '#DC2626' };
+      case 'processing': return { bg: isDark ? '#78350F' : '#FEF3C7', text: isDark ? '#FCD34D' : '#D97706' };
+      default: return { bg: isDark ? '#374151' : '#F3F4F6', text: isDark ? '#9CA3AF' : '#6B7280' };
     }
   };
 
@@ -194,7 +201,7 @@ const ProfileScreen = () => {
   const userInitial = displayName.charAt(0).toUpperCase();
 
   // --- RENDER BLOCKS ---
-  
+
   if (!isAuthenticated) {
     return (
       <View className={`flex-1 justify-center items-center ${bgMain}`}>
@@ -217,7 +224,7 @@ const ProfileScreen = () => {
   return (
     <View className={`flex-1 ${bgMain}`}>
       <SafeAreaView edges={['top']} className={bgMain} />
-      
+
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
@@ -235,13 +242,13 @@ const ProfileScreen = () => {
               <View>
                 <Text className={`text-xl font-bold ${textPrimary}`}>{displayName}</Text>
                 <Text className={`text-sm ${textSecondary}`}>{user?.email}</Text>
-              </View>
+            </View>
             </View>
             <TouchableOpacity onPress={handleLogout} className={`p-2 rounded-full ${isDark ? 'bg-neutral-800' : 'bg-gray-100'}`}>
                <Ionicons name="log-out-outline" size={20} color={isDark ? 'white' : 'black'} />
             </TouchableOpacity>
           </View>
-        </View>
+          </View>
 
         {/* --- TABS --- */}
         <View className="py-6">
@@ -259,12 +266,12 @@ const ProfileScreen = () => {
               >
                 <View className="flex-row items-center gap-x-2">
                   <Text className={`font-semibold text-xs uppercase tracking-wider ${activeTab === tab.id ? (isDark ? 'text-black' : 'text-white') : textPrimary}`}>
-                    {tab.label}
-                  </Text>
+                  {tab.label}
+                </Text>
                   {tab.badge > 0 && (
                     <View className="bg-red-500 w-2 h-2 rounded-full" />
                   )}
-                </View>
+                  </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -274,7 +281,7 @@ const ProfileScreen = () => {
         <View className="px-6">
           {success ? <Text className="text-green-600 mb-4 bg-green-50 p-3 rounded-lg border border-green-100 text-sm text-center">{success}</Text> : null}
           {error ? <Text className="text-red-600 mb-4 bg-red-50 p-3 rounded-lg border border-red-100 text-sm text-center">{error}</Text> : null}
-        </View>
+          </View>
 
         {/* --- PROFILE CONTENT --- */}
         {activeTab === 'profile' && (
@@ -283,58 +290,58 @@ const ProfileScreen = () => {
               <Text className={`text-sm font-bold tracking-widest uppercase ${textSecondary}`}>Personal Details</Text>
               <TouchableOpacity onPress={() => isEditing ? setIsEditing(false) : setIsEditing(true)}>
                 <Text className={`text-sm font-bold underline ${textPrimary}`}>{isEditing ? 'Cancel' : 'Edit'}</Text>
-              </TouchableOpacity>
-            </View>
+                    </TouchableOpacity>
+              </View>
 
             <View className="gap-y-6">
               {/* Name Field */}
               <View>
                 <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>FULL NAME</Text>
-                {isEditing ? (
-                  <TextInput
-                    value={formData.name}
+                  {isEditing ? (
+                    <TextInput
+                      value={formData.name}
                     onChangeText={(t) => setFormData({ ...formData, name: t })}
                     className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
-                  />
-                ) : (
+                    />
+                  ) : (
                   <Text className={`text-base font-medium ${textPrimary} py-2`}>{formData.name}</Text>
-                )}
-              </View>
+                  )}
+                </View>
 
               {/* Email Field (Read Only) */}
               <View>
                 <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>EMAIL ADDRESS</Text>
                 <Text className={`text-base font-medium ${textSecondary} py-2 opacity-70`}>{formData.email}</Text>
-              </View>
+                </View>
 
               {/* Phone Field */}
               <View>
                 <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>PHONE NUMBER</Text>
-                {isEditing ? (
-                  <TextInput
-                    value={formData.phone}
+                  {isEditing ? (
+                    <TextInput
+                      value={formData.phone}
                     onChangeText={(t) => setFormData({ ...formData, phone: t })}
-                    keyboardType="phone-pad"
+                      keyboardType="phone-pad"
                     className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
-                  />
-                ) : (
+                    />
+                  ) : (
                   <Text className={`text-base font-medium ${textPrimary} py-2`}>{formData.phone || 'Not set'}</Text>
-                )}
-              </View>
+                  )}
+                </View>
 
               {/* Address Field */}
-              <View>
+                <View>
                 <Text className={`text-xs mb-2 font-medium ${textSecondary}`}>SHIPPING ADDRESS</Text>
-                {isEditing ? (
-                  <TextInput
-                    value={formData.address}
+                  {isEditing ? (
+                    <TextInput
+                      value={formData.address}
                     onChangeText={(t) => setFormData({ ...formData, address: t })}
                     multiline numberOfLines={3}
                     className={`p-4 rounded-xl border ${borderCol} ${inputBg} ${textPrimary}`}
-                  />
-                ) : (
+                    />
+                  ) : (
                   <Text className={`text-base font-medium ${textPrimary} py-2 leading-6`}>{formData.address || 'No address saved'}</Text>
-                )}
+                  )}
               </View>
 
               {isEditing && (
@@ -355,32 +362,38 @@ const ProfileScreen = () => {
               <View className={`p-8 rounded-2xl items-center border border-dashed ${borderCol} ${bgCard}`}>
                 <Ionicons name="cart-outline" size={40} color={isDark ? '#525252' : '#A3A3A3'} />
                 <Text className={`mt-4 font-medium ${textSecondary}`}>No orders yet</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Home')}
+                  className={`mt-6 px-6 py-3 ${isDark ? 'bg-white' : 'bg-black'} rounded-full`}
+                >
+                  <Text className={`font-semibold ${isDark ? 'text-black' : 'text-white'}`}>Start Shopping</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               orders.map((order) => {
-                const statusClass = getStatusStyle(order.status);
+                const statusStyle = getStatusStyle(order.status);
                 return (
                   <TouchableOpacity
                     key={order._id}
-                    onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
                     className={`mb-4 p-5 rounded-2xl border ${borderCol} ${bgCard}`}
+                    activeOpacity={0.7}
                   >
                     <View className="flex-row justify-between items-start mb-4">
                       <View>
-                        <Text className={`text-xs font-bold ${textSecondary} mb-1`}>ORDER #{order.orderNumber || order._id?.slice(-6)}</Text>
-                        <Text className={`text-lg font-bold ${textPrimary}`}>₹{order.totalAmount?.toLocaleString()}</Text>
+                        <Text className={`text-xs font-bold ${textSecondary} mb-1`}>ORDER #{order.orderNumber || order._id?.slice(-8)?.toUpperCase()}</Text>
+                        <Text className={`text-lg font-bold ${textPrimary}`}>₹{order.totalAmount?.toLocaleString() || '0'}</Text>
                       </View>
-                      <View className={`px-3 py-1 rounded-full ${statusClass.split(' ')[0]}`}>
-                         <Text className={`text-[10px] font-bold uppercase ${statusClass.split(' ')[1]}`}>{order.status}</Text>
+                      <View className={`px-3 py-1 rounded-full`} style={{ backgroundColor: statusStyle.bg }}>
+                        <Text className={`text-[10px] font-bold uppercase`} style={{ color: statusStyle.text }}>{order.status || 'Pending'}</Text>
                       </View>
                     </View>
-                    
+
                     <View className={`flex-row justify-between items-center pt-4 border-t ${borderCol}`}>
-                       <Text className={`text-xs ${textSecondary}`}>{formatDate(order.createdAt)}</Text>
-                       <View className="flex-row items-center gap-1">
-                          <Text className={`text-xs font-medium ${textPrimary}`}>View Details</Text>
-                          <Ionicons name="arrow-forward" size={12} color={isDark ? 'white' : 'black'} />
-                       </View>
+                      <Text className={`text-xs ${textSecondary}`}>{formatDate(order.createdAt)}</Text>
+                      <View className="flex-row items-center">
+                        <Text className={`text-xs font-medium ${textPrimary}`}>View Details</Text>
+                        <Ionicons name="arrow-forward" size={12} color={isDark ? 'white' : 'black'} style={{ marginLeft: 4 }} />
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -395,21 +408,21 @@ const ProfileScreen = () => {
              <Text className={`text-sm font-bold tracking-widest uppercase mb-4 ${textSecondary}`}>Preferences</Text>
              
              <View className={`rounded-2xl border ${borderCol} ${bgCard} overflow-hidden`}>
-                {[
+              {[
                   { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
-                  { 
+                {
                     icon: isDark ? 'sunny-outline' : 'moon-outline', 
                     label: 'Appearance', 
                     value: isDark ? 'Dark' : 'Light',
                     onPress: () => toggleTheme(isDark ? 'light' : 'dark') 
-                  },
+                },
                   { icon: 'shield-checkmark-outline', label: 'Privacy & Security', onPress: () => {} },
                   { icon: 'document-text-outline', label: 'Terms of Service', onPress: () => {} },
                   { icon: 'headset-outline', label: 'Help & Support', onPress: () => {} },
                 ].map((item, idx, arr) => (
-                  <TouchableOpacity
+                <TouchableOpacity
                     key={idx}
-                    onPress={item.onPress}
+                  onPress={item.onPress}
                     className={`flex-row items-center justify-between p-4 ${idx !== arr.length - 1 ? 'border-b' : ''} ${borderCol}`}
                   >
                     <View className="flex-row items-center gap-4">
@@ -420,9 +433,9 @@ const ProfileScreen = () => {
                        {item.value && <Text className={`text-sm ${textSecondary}`}>{item.value}</Text>}
                        <Ionicons name="chevron-forward" size={16} color={isDark ? '#525252' : '#A3A3A3'} />
                     </View>
-                  </TouchableOpacity>
-                ))}
-             </View>
+                </TouchableOpacity>
+              ))}
+            </View>
 
              <Text className={`text-center text-xs mt-8 ${textSecondary}`}>
                 Version 1.0.2 • Build 2024

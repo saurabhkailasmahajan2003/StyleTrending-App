@@ -17,11 +17,13 @@ import { useNavigation } from '@react-navigation/native';
 import { productAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import BottomNavBar from '../components/BottomNavBar';
+import { useTheme } from '../context/ThemeContext';
 
 const ITEMS_PER_PAGE = 20;
 
 const SaleScreen = () => {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   
   const [allProducts, setAllProducts] = useState([]);
   const [displayedProducts, setDisplayedProducts] = useState([]);
@@ -34,20 +36,43 @@ const SaleScreen = () => {
   const fetchSaleProducts = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await productAPI.getAllProducts({ 
-        limit: 1000, 
-        onSale: true, 
-        sort: 'discountPercent', 
-        order: 'desc' 
-      });
+      console.log('🛍️ Fetching sale products...');
+      
+      // Fetch all products from all categories
+      const response = await productAPI.getAllProducts({ limit: 1000 });
       
       if (response && response.success) {
-        setAllProducts(response.data.products || []);
+        const allProductsData = response.data.products || [];
+        
+        // Filter products that are on sale (client-side filtering)
+        const saleProducts = allProductsData.filter(product => {
+          const finalPrice = product.finalPrice || product.price || 0;
+          const originalPrice = product.originalPrice || product.mrp || product.price || 0;
+          const hasDiscount = originalPrice > finalPrice;
+          const discountPercent = product.discountPercent || (hasDiscount ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100) : 0);
+          
+          // Product is on sale if:
+          // 1. onSale flag is true
+          // 2. Has discount (originalPrice > finalPrice)
+          // 3. discountPercent > 0
+          return product.onSale === true || hasDiscount || discountPercent > 0;
+        });
+        
+        // Sort by discount percentage (highest first)
+        saleProducts.sort((a, b) => {
+          const discountA = a.discountPercent || (a.originalPrice && a.finalPrice ? Math.round(((a.originalPrice - a.finalPrice) / a.originalPrice) * 100) : 0);
+          const discountB = b.discountPercent || (b.originalPrice && b.finalPrice ? Math.round(((b.originalPrice - b.finalPrice) / b.originalPrice) * 100) : 0);
+          return discountB - discountA;
+        });
+        
+        console.log(`✅ Found ${saleProducts.length} sale products out of ${allProductsData.length} total products`);
+        setAllProducts(saleProducts);
       } else {
+        console.warn('⚠️ Failed to fetch products:', response?.message);
         setAllProducts([]);
       }
     } catch (error) {
-      console.error('Error fetching sale products:', error);
+      console.error('❌ Error fetching sale products:', error);
       setAllProducts([]);
     } finally {
       setIsLoading(false);

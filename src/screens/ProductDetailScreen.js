@@ -554,7 +554,7 @@ const ProductDetailScreen = () => {
     }
     try {
       await addToCart(product, 1, selectedSize, selectedColor);
-      navigation.navigate('Checkout');
+      navigation.navigate('Cart');
     } catch (error) {
       if (error.message.includes('login')) {
         navigation.navigate('Login');
@@ -681,8 +681,8 @@ const ProductDetailScreen = () => {
               activeOpacity={0.8}
             >
               <Ionicons name="arrow-back" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
-              <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
-            </TouchableOpacity>
+          <Text style={{ color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+        </TouchableOpacity>
             <TouchableOpacity 
               onPress={() => navigation.navigate('Home')} 
               style={{ backgroundColor: colors.backgroundTertiary, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }} 

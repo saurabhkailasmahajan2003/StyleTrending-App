@@ -1,215 +1,224 @@
-/**
- * Bottom Navigation Bar Component
- * Modern, aesthetically pleasing bottom navigation with smooth animations
- */
-import React from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import React, { useMemo } from 'react';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Platform, 
+  StyleSheet,
+  // Removed Animated and Easing imports for the container
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; 
+
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 
-const BottomNavBar = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { cartItems } = useCart();
-  const { colors, isDark } = useTheme();
-  const cartItemCount = cartItems?.length || 0;
-  const insets = useSafeAreaInsets();
+// --- Sub-Component for Individual Tabs ---
+const TabItem = ({ item, isActive, onPress, colors, isDark }) => {
+  // NOTE: I kept the subtle icon bounce on press because it's good UX.
+  // If you want ZERO animation here too, let me know and I can remove it.
   
-  // Calculate bottom padding to avoid overlap with system controls
-  const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'ios' ? 8 : 12);
-
-  const isActive = (routeName) => {
-    if (routeName === 'Home' && route.name === 'Home') return true;
-    if (routeName === 'Shop' && (route.name === 'Category' || route.name === 'Search')) return true;
-    if (routeName === 'Cart' && route.name === 'Cart') return true;
-    if (routeName === 'Profile' && route.name === 'Profile') return true;
-    return false;
+  const handlePress = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) {
+        // Ignore if haptics fail
+      }
+    }
+    onPress();
   };
 
-  const navigateToScreen = (screenName) => {
-    const currentRoute = route.name;
-    const isActive = 
-      (screenName === 'Home' && currentRoute === 'Home') ||
-      (screenName === 'Shop' && (currentRoute === 'Category' || currentRoute === 'Search')) ||
-      (screenName === 'Cart' && currentRoute === 'Cart') ||
-      (screenName === 'Profile' && currentRoute === 'Profile');
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      style={styles.tabContainer}
+      activeOpacity={0.9}
+    >
+      <View style={styles.iconWrapper}>
+        {isActive && (
+          <View style={[
+            styles.activePill, 
+            { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' } 
+          ]} />
+        )}
 
-    // If already on this screen, trigger scroll to top
+        <Ionicons
+          name={isActive ? item.iconActive : item.icon}
+          size={24}
+          color={isActive ? colors.primary : colors.textSecondary}
+        />
+
+        {item.badge > 0 && (
+          <View style={[styles.badge, { backgroundColor: colors.error || '#EF4444', borderColor: isDark ? colors.card : '#FFFFFF' }]}>
+            <Text style={styles.badgeText}>
+              {item.badge > 9 ? '9+' : item.badge}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[
+        styles.label, 
+        { color: isActive ? colors.primary : colors.textSecondary, fontWeight: isActive ? '700' : '500' }
+      ]}>
+        {item.name}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+// --- Main Component ---
+const BottomNavBar = ({ isVisible = true }) => {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { cart, getCartItemsCount } = useCart();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  const cartItemCount = getCartItemsCount ? getCartItemsCount() : (cart?.length || 0);
+
+  // 1. Instant Hide: If not visible, return null immediately (No animation)
+  if (!isVisible) return null;
+
+  const navItems = useMemo(() => [
+    { name: 'Home', icon: 'home-outline', iconActive: 'home', route: 'Home' },
+    { name: 'Shop', icon: 'grid-outline', iconActive: 'grid', route: 'Shop' },
+    { name: 'Cart', icon: 'cart-outline', iconActive: 'cart', route: 'Cart', badge: cartItemCount },
+    { name: 'Profile', icon: 'person-outline', iconActive: 'person', route: 'Profile' },
+  ], [cartItemCount]);
+
+  const isTabActive = (tabRoute) => {
+    if (!route) return false;
+    const currentName = route.name;
+    if (tabRoute === 'Home') return currentName === 'Home';
+    if (tabRoute === 'Shop') return ['Category', 'Search', 'ProductDetail'].includes(currentName);
+    if (tabRoute === 'Cart') return ['Cart', 'Checkout'].includes(currentName);
+    if (tabRoute === 'Profile') return ['Profile', 'Orders'].includes(currentName);
+    return currentName === tabRoute;
+  };
+
+  const handleNavigation = (screenName) => {
+    if (!navigation) return;
+    const isActive = isTabActive(screenName);
+
     if (isActive) {
-      // Emit navigation event to trigger scroll to top
-      navigation.emit({
-        type: 'tabPress',
-        target: route.key,
-        canPreventDefault: true,
-      });
-      // Also use navigate with scrollToTop param
-      if (screenName === 'Home') {
-        navigation.navigate('Home', { scrollToTop: true });
-      } else if (screenName === 'Shop') {
-        navigation.navigate('Category', { category: 'all', scrollToTop: true });
-      } else if (screenName === 'Cart') {
-        navigation.navigate('Cart', { scrollToTop: true });
-      } else if (screenName === 'Profile') {
-        navigation.navigate('Profile', { scrollToTop: true });
+      const targetParams = { scrollToTop: Date.now() };
+      if (screenName === 'Shop') {
+        navigation.navigate('Category', { ...targetParams, category: 'all' });
+      } else {
+        navigation.navigate(screenName, targetParams);
       }
       return;
     }
 
-    // Navigate to new screen
-    if (screenName === 'Home') {
-      navigation.navigate('Home');
-    } else if (screenName === 'Shop') {
-      navigation.navigate('Category', { category: 'all' });
-    } else if (screenName === 'Cart') {
-      navigation.navigate('Cart');
-    } else if (screenName === 'Profile') {
-      navigation.navigate('Profile');
+    try {
+      if (screenName === 'Shop') {
+        navigation.navigate('Category', { category: 'all' });
+      } else {
+        navigation.navigate(screenName);
+      }
+    } catch (error) {
+      console.warn('Navigation error:', error);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: screenName === 'Shop' ? 'Home' : screenName }],
+      });
     }
   };
 
-  const navItems = [
-    { name: 'Home', icon: 'home-outline', iconActive: 'home', route: 'Home' },
-    { name: 'Shop', icon: 'grid-outline', iconActive: 'grid', route: 'Shop' },
-    { name: 'Cart', icon: 'bag-outline', iconActive: 'bag', route: 'Cart', badge: cartItemCount },
-    { name: 'Profile', icon: 'person-outline', iconActive: 'person', route: 'Profile' },
-  ];
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 10 : 10);
 
   return (
     <View 
-      style={{ 
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-      }}
-    >
-      <View 
-        style={{
-          backgroundColor: isDark ? colors.card : '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-          paddingTop: 10,
+      style={[
+        styles.container, 
+        { 
           paddingBottom: bottomPadding,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: isDark ? 0.3 : 0.08,
-          shadowRadius: 12,
-          elevation: 16,
-        }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingHorizontal: 8 }}>
-          {navItems.map((item) => {
-            const active = isActive(item.route);
-            return (
-              <TouchableOpacity
-                key={item.name}
-                onPress={() => navigateToScreen(item.route)}
-                style={{ 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  flex: 1,
-                  paddingVertical: 4,
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center', minWidth: 56 }}>
-                  {/* Active indicator background */}
-                  {active && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-                      }}
-                    />
-                  )}
-                  
-                  {/* Icon Container */}
-                  <View style={{ position: 'relative', marginBottom: 4 }}>
-                    <Ionicons 
-                      name={active ? item.iconActive : item.icon} 
-                      size={active ? 26 : 24} 
-                      color={active ? colors.primary : colors.textSecondary} 
-                    />
-                    
-                    {/* Badge */}
-                    {item.badge && item.badge > 0 && (
-                      <View 
-                        style={{
-                          position: 'absolute',
-                          top: -8,
-                          right: -10,
-                          backgroundColor: '#EF4444',
-                          borderRadius: 10,
-                          minWidth: 20,
-                          height: 20,
-                          paddingHorizontal: 6,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: 2,
-                          borderColor: isDark ? colors.card : '#FFFFFF',
-                          shadowColor: '#EF4444',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.4,
-                          shadowRadius: 4,
-                          elevation: 6,
-                        }}
-                      >
-                        <Text 
-                          style={{ 
-                            color: '#FFFFFF', 
-                            fontSize: 11, 
-                            fontWeight: '800',
-                            letterSpacing: 0.3,
-                          }}
-                        >
-                          {item.badge > 9 ? '9+' : item.badge}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  
-                  {/* Label */}
-                  <Text 
-                    style={{
-                      fontSize: 12,
-                      fontWeight: active ? '700' : '500',
-                      color: active ? colors.primary : colors.textSecondary,
-                      letterSpacing: 0.2,
-                      marginTop: 2,
-                    }}
-                  >
-                    {item.name}
-                  </Text>
-                  
-                  {/* Active indicator dot */}
-                  {active && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: -4,
-                        width: 5,
-                        height: 5,
-                        borderRadius: 2.5,
-                        backgroundColor: colors.primary,
-                      }}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          backgroundColor: isDark ? colors.card : '#FFFFFF',
+          borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          shadowColor: colors.shadow || '#000',
+        }
+      ]}
+    >
+      <View style={styles.contentContainer}>
+        {navItems.map((item) => (
+          <TabItem
+            key={item.name}
+            item={item}
+            isActive={isTabActive(item.route)}
+            onPress={() => handleNavigation(item.route)}
+            colors={colors}
+            isDark={isDark}
+          />
+        ))}
       </View>
     </View>
   );
 };
 
-export default BottomNavBar;
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    borderTopWidth: 1,
+    paddingTop: 8,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  contentContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  tabContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  iconWrapper: {
+    width: 44, 
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  activePill: {
+    position: 'absolute',
+    width: 50,
+    height: 32,
+    borderRadius: 16,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  label: {
+    fontSize: 11,
+    letterSpacing: 0.2,
+  },
+});
 
+export default BottomNavBar;

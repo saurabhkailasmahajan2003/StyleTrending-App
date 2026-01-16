@@ -47,11 +47,7 @@ const DrawerContent = React.memo(({ onClose }) => {
       ] 
     },
     { 
-      id: 'watches', label: 'Watches', icon: 'watch-outline',
-      subItems: [
-        { name: "Men's", path: 'watches', params: { gender: 'men' } },
-        { name: "Women's", path: 'watches', params: { gender: 'women' } },
-      ] 
+      id: 'watches', label: 'Watches', icon: 'watch-outline'
     },
     { 
       id: 'accessories', label: 'Accessories', icon: 'glasses-outline',
@@ -112,7 +108,7 @@ const DrawerContent = React.memo(({ onClose }) => {
               <Text className={`text-xs ${textSecondary}`}>
                 {isAuthenticated ? 'View Profile' : 'Sign in to start shopping'}
               </Text>
-            </View>
+          </View>
           </TouchableOpacity>
 
           {/* Close Button */}
@@ -120,7 +116,7 @@ const DrawerContent = React.memo(({ onClose }) => {
             <Ionicons name="close" size={20} color={isDark ? 'white' : 'black'} />
           </TouchableOpacity>
         </View>
-      </View>
+        </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         
@@ -155,44 +151,44 @@ const DrawerContent = React.memo(({ onClose }) => {
             const isOpen = expandedCategory === category.id;
             return (
               <View key={category.id} className="mb-1">
-                <TouchableOpacity
-                  onPress={() => toggleCategory(category.id)}
+              <TouchableOpacity
+                onPress={() => toggleCategory(category.id)}
                   className={`flex-row justify-between items-center py-3 ${isOpen ? 'opacity-100' : 'opacity-80'}`}
-                >
+              >
                   <View className="flex-row items-center">
                     <View className={`w-8 items-center`}>
                        <Ionicons name={category.icon} size={20} color={isDark ? '#D1D5DB' : '#4B5563'} />
                     </View>
                     <Text className={`ml-2 text-base font-medium ${textPrimary}`}>{category.label}</Text>
                   </View>
-                  <Ionicons 
+                <Ionicons 
                     name={isOpen ? "chevron-up" : "chevron-down"} 
                     size={16} 
                     color={isDark ? '#9CA3AF' : '#9CA3AF'} 
-                  />
-                </TouchableOpacity>
-
+                />
+              </TouchableOpacity>
+              
                 {/* Sub Items (Animated by LayoutAnimation) */}
                 {isOpen && (
                   <View className={`ml-10 border-l ${borderColor} pl-4 mb-2`}>
                     {category.subItems.map((sub, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        onPress={() => {
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => {
                           if (sub.params) handleNavigation('Category', { category: sub.path, ...sub.params });
                           else handleNavigation('Category', { category: category.id, subcategory: sub.path });
-                        }}
+                      }}
                         className="py-2.5"
-                      >
+                    >
                         <Text className={`text-sm ${textSecondary} hover:text-pink-500`}>{sub.name}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    </TouchableOpacity>
+                  ))}
                     <TouchableOpacity onPress={() => handleNavigation('Category', { category: category.id })} className="py-2.5 mt-1">
                       <Text className="text-sm font-bold text-pink-500">View All {category.label}</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
             );
           })}
         </View>
@@ -209,12 +205,12 @@ const DrawerContent = React.memo(({ onClose }) => {
                     <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={textPrimary} />
                 </View>
                 <Text className={`font-medium ${textPrimary}`}>Dark Mode</Text>
-             </View>
+            </View>
              
              {/* Simple Custom Switch UI */}
              <View className={`w-10 h-6 rounded-full justify-center px-1 ${isDark ? 'bg-green-500' : 'bg-gray-300'}`}>
                 <View className={`w-4 h-4 bg-white rounded-full shadow-sm ${isDark ? 'self-end' : 'self-start'}`} />
-             </View>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -232,18 +228,18 @@ const DrawerContent = React.memo(({ onClose }) => {
           </TouchableOpacity>
         ) : (
           <View className="flex-row gap-x-4">
-             <TouchableOpacity 
-                onPress={() => handleNavigation('Login')}
+            <TouchableOpacity
+              onPress={() => handleNavigation('Login')}
                 className={`flex-1 py-3 rounded-xl border ${borderColor} items-center`}
-             >
+            >
                 <Text className={`font-bold ${textPrimary}`}>Log In</Text>
-             </TouchableOpacity>
-             <TouchableOpacity 
-                onPress={() => handleNavigation('SignUp')}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleNavigation('SignUp')}
                 className="flex-1 py-3 rounded-xl bg-pink-600 items-center shadow-md shadow-pink-200"
-             >
+            >
                 <Text className="font-bold text-white">Sign Up</Text>
-             </TouchableOpacity>
+            </TouchableOpacity>
           </View>
         )}
         <Text className={`text-center text-[10px] mt-4 ${textSecondary}`}>

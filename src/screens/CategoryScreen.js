@@ -33,31 +33,19 @@ const categories = [
     label: 'Men', 
     subItems: [
       { name: 'Shirts', path: 'shirt' },
-      { name: 'T-Shirts', path: 'tshirt' },
-      { name: 'Jeans', path: 'jeans' },
-      { name: 'Trousers', path: 'trousers' },
-      { name: 'Shoes', path: 'shoes' }
+      { name: 'Trousers', path: 'trousers' }
     ] 
   },
   { 
     id: 'women', 
     label: 'Women', 
     subItems: [
-      { name: 'Shirts', path: 'shirt' },
-      { name: 'T-Shirts', path: 'tshirt' },
-      { name: 'Jeans', path: 'jeans' },
-      { name: 'Trousers', path: 'trousers' },
       { name: 'Saree', path: 'saree' }
     ] 
   },
   { 
     id: 'watches', 
-    label: 'Watches', 
-    subItems: [
-      { name: "Men's Watches", path: 'watches', params: { gender: 'men' } },
-      { name: "Women's Watches", path: 'watches', params: { gender: 'women' } },
-      { name: 'Smart Watches', path: 'watches', params: { type: 'smart' } }
-    ] 
+    label: 'Watches'
   },
   { 
     id: 'eyewear', 
@@ -69,12 +57,11 @@ const categories = [
     ] 
   },
   { 
-    id: 'accessories', 
+    id: 'accessories',
     label: 'Accessories', 
     subItems: [
       { name: "Men's Accessories", path: 'accessories', params: { gender: 'men' } },
-      { name: "Women's Accessories", path: 'accessories', params: { gender: 'women' } },
-      { name: 'Wallets & Belts', path: 'accessories', params: { type: 'general' } }
+      { name: "Women's Accessories", path: 'accessories', params: { gender: 'women' } }
     ] 
   }
 ];
@@ -118,6 +105,78 @@ const CategoryScreen = () => {
   const dropdownOpacity = useRef(new Animated.Value(0)).current;
   const dropdownScale = useRef(new Animated.Value(0.95)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Scroll position tracking for "Go to Top" button
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const scrollToTopOpacity = useRef(new Animated.Value(0)).current;
+  const scrollToTopScale = useRef(new Animated.Value(0.8)).current;
+  const showScrollToTopRef = useRef(false);
+  
+  // Bottom bar visibility based on scroll direction
+  const [isBottomBarVisible, setIsBottomBarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  
+  // Handle scroll event for FlatList
+  const isBottomBarVisibleRef = useRef(true);
+  const handleScroll = useCallback((event) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const threshold = 200; // Show button after scrolling 200px
+    const scrollDelta = scrollY - lastScrollY.current;
+    
+    // Quick response: hide/show immediately based on scroll direction
+    if (scrollDelta > 5 && scrollY > 10) {
+      // Scrolling down - hide bottom bar immediately
+      if (isBottomBarVisibleRef.current) {
+        isBottomBarVisibleRef.current = false;
+        setIsBottomBarVisible(false);
+      }
+    } else if (scrollDelta < -5) {
+      // Scrolling up - show bottom bar immediately
+      if (!isBottomBarVisibleRef.current) {
+        isBottomBarVisibleRef.current = true;
+        setIsBottomBarVisible(true);
+      }
+    }
+    lastScrollY.current = scrollY;
+    
+    // Handle "Go to Top" button visibility
+    if (scrollY > threshold) {
+      if (!showScrollToTopRef.current) {
+        showScrollToTopRef.current = true;
+        setShowScrollToTop(true);
+        Animated.parallel([
+          Animated.timing(scrollToTopOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scrollToTopScale, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    } else {
+      if (showScrollToTopRef.current) {
+        showScrollToTopRef.current = false;
+        setShowScrollToTop(false);
+        Animated.parallel([
+          Animated.timing(scrollToTopOpacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scrollToTopScale, {
+            toValue: 0.8,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }
+  }, [scrollToTopOpacity, scrollToTopScale]);
 
   // Determine category type from route
   const categoryType = category || 'all';
@@ -146,11 +205,107 @@ const CategoryScreen = () => {
         response = await productAPI.getAccessories(params);
         setPageTitle(activeGender ? `${activeGender.charAt(0).toUpperCase() + activeGender.slice(1)}'s Accessories` : 'Accessories');
       } else if (categoryType === 'men') {
-        response = await productAPI.getMenItems({ limit: fetchLimit });
-        setPageTitle("Men's Collection");
+        // If subcategory is specified, filter by it
+        if (activeCategory) {
+          const categoryMap = {
+            'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
+            'shirts': { subCategory: 'shirt', displayName: 'Shirt' },
+            'tshirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            't-shirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            'tshirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            't-shirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            'jeans': { subCategory: 'jeans', displayName: 'Jeans' },
+            'trousers': { subCategory: 'trousers', displayName: 'Trousers' },
+            'trouser': { subCategory: 'trousers', displayName: 'Trousers' },
+            'shoes': { subCategory: 'shoes', displayName: 'Shoes' },
+            'shoe': { subCategory: 'shoes', displayName: 'Shoes' },
+          };
+          const categoryInfo = categoryMap[activeCategory.toLowerCase()];
+          if (categoryInfo) {
+            response = await productAPI.getMenItems({ category: categoryInfo.subCategory, limit: fetchLimit });
+            
+            // If no products found with category filter, try fetching all and filtering client-side
+            if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+              console.log(`[Men ${categoryInfo.subCategory}] No products found with category filter, trying to fetch all and filter...`);
+              const allResponse = await productAPI.getMenItems({ limit: fetchLimit });
+              if (allResponse && allResponse.success && allResponse.data?.products) {
+                response = allResponse;
+                // Mark for client-side filtering - we'll handle this in the filterProducts function
+                response._needsClientSideFilter = true;
+                response._expectedSubCategory = categoryInfo.subCategory;
+              }
+            }
+            setPageTitle(`Men's ${categoryInfo.displayName}s`);
+          } else {
+            // Only show shirts when no subcategory is specified
+            response = await productAPI.getMenItems({ category: 'shirt', limit: fetchLimit });
+            if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+              // Try with subCategory parameter
+              response = await productAPI.getMenItems({ subCategory: 'shirt', limit: fetchLimit });
+            }
+            setPageTitle("Men's Shirts");
+          }
+        } else {
+          // Only show shirts when no subcategory is specified
+          response = await productAPI.getMenItems({ category: 'shirt', limit: fetchLimit });
+          if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+            // Try with subCategory parameter
+            response = await productAPI.getMenItems({ subCategory: 'shirt', limit: fetchLimit });
+          }
+          setPageTitle("Men's Shirts");
+        }
       } else if (categoryType === 'women') {
-        response = await productAPI.getWomenItems({ limit: fetchLimit });
-        setPageTitle("Women's Collection");
+        // If subcategory is specified, filter by it
+        if (activeCategory) {
+          const categoryMap = {
+            'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
+            'shirts': { subCategory: 'shirt', displayName: 'Shirt' },
+            'tshirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            't-shirt': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            'tshirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            't-shirts': { subCategory: 'tshirt', displayName: 'T-Shirt' },
+            'jeans': { subCategory: 'jeans', displayName: 'Jeans' },
+            'trousers': { subCategory: 'trousers', displayName: 'Trousers' },
+            'trouser': { subCategory: 'trousers', displayName: 'Trousers' },
+            'shoes': { subCategory: 'shoes', displayName: 'Shoes' },
+            'shoe': { subCategory: 'shoes', displayName: 'Shoes' },
+            'saree': { subCategory: 'saree', displayName: 'Saree' },
+            'sari': { subCategory: 'saree', displayName: 'Saree' },
+          };
+          const categoryInfo = categoryMap[activeCategory.toLowerCase()];
+          if (categoryInfo) {
+            response = await productAPI.getWomenItems({ category: categoryInfo.subCategory, limit: fetchLimit });
+            
+            // If no products found with category filter, try fetching all and filtering client-side
+            if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+              console.log(`[Women ${categoryInfo.subCategory}] No products found with category filter, trying to fetch all and filter...`);
+              const allResponse = await productAPI.getWomenItems({ limit: fetchLimit });
+              if (allResponse && allResponse.success && allResponse.data?.products) {
+                response = allResponse;
+                // Mark for client-side filtering - we'll handle this in the filterProducts function
+                response._needsClientSideFilter = true;
+                response._expectedSubCategory = categoryInfo.subCategory;
+              }
+            }
+            setPageTitle(`Women's ${categoryInfo.displayName}s`);
+          } else {
+            // Only show sarees when no subcategory is specified
+            response = await productAPI.getWomenItems({ category: 'saree', limit: fetchLimit });
+            if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+              // Try with subCategory parameter
+              response = await productAPI.getWomenItems({ subCategory: 'saree', limit: fetchLimit });
+            }
+            setPageTitle("Women's Sarees");
+          }
+        } else {
+          // Only show sarees when no subcategory is specified
+          response = await productAPI.getWomenItems({ category: 'saree', limit: fetchLimit });
+          if (!response || !response.success || !response.data?.products || response.data.products.length === 0) {
+            // Try with subCategory parameter
+            response = await productAPI.getWomenItems({ subCategory: 'saree', limit: fetchLimit });
+          }
+          setPageTitle("Women's Sarees");
+        }
       } else if (activeGender && activeCategory) {
         const categoryMap = {
           'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
@@ -414,8 +569,63 @@ const CategoryScreen = () => {
     }
 
     // Subcategory Filtering - only apply when both gender and subcategory are specified
-    // When viewing main category (e.g., just "women" without subcategory), show all products
-    if (activeGender && activeCategory) {
+    // When viewing main category (e.g., just "women" without subcategory), show only sarees
+    // When viewing main category (e.g., just "men" without subcategory), show only shirts
+    console.log(`[Client Filter] Starting filter - activeGender: ${activeGender}, activeCategory: ${activeCategory}, categoryType: ${categoryType}, filtered.length: ${filtered.length}`);
+    // For men category without subcategory, filter to show only shirts
+    if (categoryType === 'men' && !activeCategory) {
+      // Helper function to normalize product category
+      const normalizeProductCategory = (product) => {
+        const categoryValue = product.subCategory || product.subcategory || product.productType || product.type;
+        if (!categoryValue) return '';
+        return String(categoryValue).toLowerCase().trim().replace(/-/g, '');
+      };
+      
+      filtered = filtered.filter(product => {
+        if (!product) return false;
+        const productSubCategory = normalizeProductCategory(product);
+        const productName = (product.name || product.title || product.productName || '').toLowerCase().trim();
+        const productCategory = (product.category || product.productCategory || '').toLowerCase().trim().replace(/-/g, '');
+        
+        // Check if it's a shirt (exclude t-shirts, jeans, shoes, trousers)
+        const isShirt = (productSubCategory === 'shirt' || productSubCategory === 'shirts') &&
+                       !productSubCategory.includes('tshirt') && !productSubCategory.includes('t-shirt') &&
+                       !productName.includes('tshirt') && !productName.includes('t-shirt') && !productName.includes('tee') &&
+                       productSubCategory !== 'jeans' && productSubCategory !== 'jean' &&
+                       productSubCategory !== 'shoe' && productSubCategory !== 'shoes' &&
+                       productSubCategory !== 'trouser' && productSubCategory !== 'trousers' &&
+                       productCategory !== 'jeans' && productCategory !== 'jean' &&
+                       productCategory !== 'shoe' && productCategory !== 'shoes' &&
+                       productCategory !== 'trouser' && productCategory !== 'trousers' &&
+                       !productName.includes('jean') && !productName.includes('shoe') && 
+                       !productName.includes('trouser') && !productName.includes('pant');
+        
+        return isShirt;
+      });
+      console.log(`[Client Filter] After filtering for shirts only: ${filtered.length} products`);
+    } else if (categoryType === 'women' && !activeCategory) {
+      // Helper function to normalize product category
+      const normalizeProductCategory = (product) => {
+        const categoryValue = product.subCategory || product.subcategory || product.productType || product.type;
+        if (!categoryValue) return '';
+        return String(categoryValue).toLowerCase().trim().replace(/-/g, '');
+      };
+      
+      filtered = filtered.filter(product => {
+        if (!product) return false;
+        const productSubCategory = normalizeProductCategory(product);
+        const productName = (product.name || product.title || product.productName || '').toLowerCase().trim();
+        const productCategory = (product.category || product.productCategory || '').toLowerCase().trim().replace(/-/g, '');
+        
+        // Check if it's a saree
+        const isSaree = productSubCategory === 'saree' || productSubCategory === 'sari' ||
+                        productCategory === 'saree' || productCategory === 'sari' ||
+                        productName.includes('saree') || productName.includes('sari');
+        
+        return isSaree;
+      });
+      console.log(`[Client Filter] After filtering for sarees only: ${filtered.length} products`);
+    } else if (activeGender && activeCategory) {
       const categoryMap = {
         'shirt': { subCategory: 'shirt', displayName: 'Shirt' },
         'shirts': { subCategory: 'shirt', displayName: 'Shirt' },
@@ -437,46 +647,135 @@ const CategoryScreen = () => {
       if (categoryInfo) {
         const expectedSubCategory = categoryInfo.subCategory.toLowerCase().trim().replace(/-/g, '');
         
-        // Debug: Log sample products to understand structure (only for jeans/shoes)
-        if (filtered.length > 0 && (expectedSubCategory === 'jeans' || expectedSubCategory === 'shoes')) {
+        /**
+         * Normalizes product category fields by checking multiple possible field names
+         * in priority order: subCategory > subcategory > productType > type
+         * Returns normalized, lowercase string with hyphens removed for consistent matching
+         */
+        const normalizeProductCategory = (product) => {
+          // Check fields in priority order - stop at first non-empty value
+          const categoryValue = product.subCategory || product.subcategory || product.productType || product.type;
+          if (!categoryValue) return '';
+          
+          // Normalize: lowercase, trim, remove hyphens for consistent matching
+          return String(categoryValue).toLowerCase().trim().replace(/-/g, '');
+        };
+        
+        /**
+         * Detects t-shirts from product name when category fields are missing
+         * Used as fallback when normalizeProductCategory returns empty
+         */
+        const isTshirtByName = (productName) => {
+          if (!productName) return false;
+          const normalizedName = productName.toLowerCase().trim();
+          // Match common t-shirt indicators in product names
+          return normalizedName.includes('tshirt') || 
+                 normalizedName.includes('t-shirt') || 
+                 normalizedName.includes('tee') ||
+                 (normalizedName.includes('shirt') && !normalizedName.includes('dress shirt'));
+        };
+        
+        // Debug: Log sample products to understand structure (for jeans/shoes/shirt/tshirt)
+        if (filtered.length > 0 && (expectedSubCategory === 'jeans' || expectedSubCategory === 'shoes' || expectedSubCategory === 'shirt' || expectedSubCategory === 'tshirt')) {
           const sampleProducts = filtered.slice(0, 10);
           console.log(`[Client Filter] Sample products for ${expectedSubCategory}:`, sampleProducts.map(p => ({
             name: p.name,
             category: p.category,
             subCategory: p.subCategory,
-            subcategory: p.subcategory, // Check alternative field name
-            gender: p.gender,
+            subcategory: p.subcategory,
+            productType: p.productType,
             type: p.type,
-            productType: p.productType
+            normalized: normalizeProductCategory(p),
+            gender: p.gender
           })));
+          console.log(`[Client Filter] Filtering ${filtered.length} products for expectedSubCategory: ${expectedSubCategory}, activeGender: ${activeGender}, activeCategory: ${activeCategory}`);
         }
         
         filtered = filtered.filter(product => {
           if (!product) return false;
           
-          // Check multiple possible field names
-          const productSubCategory = (product.subCategory || product.subcategory || product.type || '').toLowerCase().trim().replace(/-/g, '');
+          // Normalize category fields using priority order
+          const productSubCategory = normalizeProductCategory(product);
           const productCategory = (product.category || product.productCategory || '').toLowerCase().trim().replace(/-/g, '');
           const productName = (product.name || product.title || product.productName || '').toLowerCase().trim();
           
-          // Priority 1: Exact match in subCategory (most reliable)
-          if (productSubCategory === expectedSubCategory) {
+          // Priority 1: Exact match in normalized subCategory (most reliable)
+          if (productSubCategory && productSubCategory === expectedSubCategory) {
             return true;
           }
           
           // Priority 2: Exact match in category (but only if category is not 'women' or 'men')
           // For women/men products, category is always 'women'/'men', so we should check subCategory
-          if (productCategory === expectedSubCategory && productCategory !== 'women' && productCategory !== 'men') {
+          if (productCategory && productCategory === expectedSubCategory && productCategory !== 'women' && productCategory !== 'men') {
             return true;
           }
           
-          // Priority 2b: For women/men products, ensure we're checking subCategory correctly
-          // The schema has category='women' and subCategory='shirt'/'tshirt'/'jeans'/'trousers'
-          if ((productCategory === 'women' || productCategory === 'men') && productSubCategory === expectedSubCategory) {
-            return true;
+          // Priority 3: For t-shirts specifically, prioritize product name over subCategory
+          // This handles backend inconsistency where T-shirts may have wrong subCategory (e.g., "saree")
+          if (expectedSubCategory === 'tshirt') {
+            // PRIORITY 1: Check product name FIRST - name is most reliable indicator
+            // If name clearly indicates T-shirt, include it (even if subCategory is wrong)
+            if (isTshirtByName(productName)) {
+              // Only exclude if name ALSO clearly indicates a conflicting category
+              const hasConflictingName = productName.includes('saree') || 
+                                        productName.includes('jean') || 
+                                        productName.includes('trouser') || 
+                                        productName.includes('shoe') ||
+                                        (productName.includes('shirt') && productName.includes('dress'));
+              // If name indicates T-shirt AND no conflicting category in name, include it
+              if (!hasConflictingName) {
+                return true;
+              }
+            }
+            
+            // PRIORITY 2: Exclude if name clearly indicates non-t-shirt category
+            // This prevents false positives (e.g., "Saree T-Shirt" would be excluded here)
+            const isNonTshirtName = productName.includes('saree') || 
+                                    productName.includes('jean') || 
+                                    productName.includes('trouser') || 
+                                    productName.includes('shoe') ||
+                                    (productName.includes('shirt') && productName.includes('dress'));
+            if (isNonTshirtName) {
+              return false;
+            }
+            
+            // PRIORITY 3: Check subCategory as secondary validation
+            // If normalized category matches, include it
+            if (productSubCategory === 'tshirt' || productSubCategory === 'tshirts') {
+              return true;
+            }
+            // If normalized category includes 'tshirt', include it (handles variations)
+            if (productSubCategory && productSubCategory.includes('tshirt')) {
+              return true;
+            }
+            
+            // PRIORITY 4: If name suggests T-shirt but subCategory is empty/missing, include it
+            // This handles cases where category fields are completely missing
+            if (!productSubCategory && isTshirtByName(productName)) {
+              return true;
+            }
+            
+            // Exclude only if subCategory is explicitly a different category AND name doesn't indicate T-shirt
+            if (productSubCategory) {
+              const isOtherCategory = productSubCategory === 'jeans' || 
+                                     productSubCategory === 'trousers' || 
+                                     productSubCategory === 'shoes' || 
+                                     productSubCategory === 'saree';
+              // Only exclude if name doesn't indicate T-shirt (name takes priority)
+              if (isOtherCategory && !isTshirtByName(productName)) {
+                return false;
+              }
+            }
+            
+            // Final check: if name suggests T-shirt, include it regardless of subCategory
+            if (isTshirtByName(productName)) {
+              return true;
+            }
+            
+            return false;
           }
           
-          // Priority 3: For jeans specifically, check for jeans/denim keywords
+          // Priority 4: For jeans specifically, check for jeans/denim keywords
           if (expectedSubCategory === 'jeans') {
             // Must have jeans/denim in subCategory, category, or name
             const hasJeansKeyword = productSubCategory.includes('jean') || 
@@ -514,7 +813,7 @@ const CategoryScreen = () => {
             return false;
           }
           
-          // Priority 4: For shoes specifically, check for shoe/shoes keywords
+          // Priority 5: For shoes specifically, check for shoe/shoes keywords
           if (expectedSubCategory === 'shoes') {
             // Must have shoe/shoes in subCategory, category, or name
             const hasShoeKeyword = productSubCategory.includes('shoe') || 
@@ -534,18 +833,32 @@ const CategoryScreen = () => {
             return hasShoeKeyword && !isOtherCategory;
           }
           
-          // For other categories, use strict matching with fallback to includes
-          // But for women/men products, only check subCategory (category is always 'women'/'men')
+          // Priority 6: For other categories, use lenient matching
+          // For women/men products, category is always 'women'/'men', so check subCategory
           if (productCategory === 'women' || productCategory === 'men') {
-            // For women/men products, only match on subCategory
-            return productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
+            // Use includes for partial matches (handles variations like 'tshirt' vs 'tshirts')
+            if (productSubCategory) {
+              return productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory) || expectedSubCategory.includes(productSubCategory);
+            }
+            return false;
           }
           
-          // For other product types, check both category and subCategory
-          const matchesSubCategory = productSubCategory === expectedSubCategory || productSubCategory.includes(expectedSubCategory);
-          const matchesCategory = productCategory === expectedSubCategory || productCategory.includes(expectedSubCategory);
+          // For other product types, check both category and subCategory with lenient matching
+          if (productSubCategory) {
+            const matchesSubCategory = productSubCategory === expectedSubCategory || 
+                                      productSubCategory.includes(expectedSubCategory) || 
+                                      expectedSubCategory.includes(productSubCategory);
+            if (matchesSubCategory) return true;
+          }
           
-          return matchesSubCategory || matchesCategory;
+          if (productCategory) {
+            const matchesCategory = productCategory === expectedSubCategory || 
+                                   productCategory.includes(expectedSubCategory) || 
+                                   expectedSubCategory.includes(productCategory);
+            if (matchesCategory) return true;
+          }
+          
+          return false;
         });
         console.log(`[Client Filter] After subcategory filter: ${filtered.length} products`);
       }
@@ -929,6 +1242,47 @@ const CategoryScreen = () => {
           </Text>
         </View>
       )}
+      
+      {/* Go to Top Button - Positioned in middle under category bar, shows only when scrolled down */}
+      {showScrollToTop && (
+        <Animated.View style={{ 
+          position: 'absolute', 
+          top: 160, 
+          left: 0, 
+          right: 0, 
+          alignItems: 'center', 
+          zIndex: 49,
+          pointerEvents: 'box-none',
+          opacity: scrollToTopOpacity,
+          transform: [{ scale: scrollToTopScale }],
+        }}>
+          <TouchableOpacity
+            onPress={() => {
+              if (flatListRef.current) {
+                flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+              }
+            }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.primary,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.25,
+              shadowRadius: 5,
+              elevation: 6,
+              borderWidth: 2,
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.3)',
+            }}
+          >
+            <Ionicons name="arrow-up" size={18} color={isDark ? '#000000' : '#FFFFFF'} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
       </SafeAreaView>
       
       {/* Dropdown Menu - Rendered outside SafeAreaView for proper visibility */}
@@ -1023,6 +1377,8 @@ const CategoryScreen = () => {
         }}
         columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
         style={{ flex: 1, backgroundColor: colors.background, zIndex: 1 }}
+        onScroll={handleScroll}
+        scrollEventThrottle={8}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={() => expandedCategory && setExpandedCategory(null)}
@@ -1073,7 +1429,7 @@ const CategoryScreen = () => {
         brands={brands}
         sizes={sizes}
       />
-      <BottomNavBar />
+      <BottomNavBar isVisible={isBottomBarVisible} />
     </View>
   );
 };

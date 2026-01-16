@@ -411,12 +411,12 @@ export const searchAPI = {
   },
 };
 
-// Order Tracking API calls - Exact match to web
-export const trackingAPI = {
-  trackOrder: async (orderId) => {
-    return apiRequest(`/orders/track/${orderId}`);
-  },
-};
+// Order Tracking API - Removed as order placing system is disabled
+// export const trackingAPI = {
+//   trackOrder: async (orderId) => {
+//     return apiRequest(`/orders/track/${orderId}`);
+//   },
+// };
 
 // Export default apiRequest (matches web export)
 export default apiRequest;

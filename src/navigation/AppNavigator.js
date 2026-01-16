@@ -18,13 +18,12 @@ import SignUpScreen from '../screens/SignUpScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import OrderSuccessScreen from '../screens/OrderSuccessScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import SaleScreen from '../screens/SaleScreen';
 import FreshDropsScreen from '../screens/FreshDropsScreen';
 import SearchScreen from '../screens/SearchScreen';
-import TrackOrderScreen from '../screens/TrackOrderScreen';
-import OrderSuccessScreen from '../screens/OrderSuccessScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import DrawerContent from '../components/DrawerContent';
 
@@ -120,6 +119,11 @@ function MainStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen 
+        name="OrderSuccess" 
+        component={OrderSuccessScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
         name="Profile" 
         component={ProfileScreen}
         options={{ title: 'Profile' }}
@@ -128,16 +132,6 @@ function MainStack() {
         name="Search" 
         component={SearchScreen}
         options={{ title: 'Search Products' }}
-      />
-      <Stack.Screen 
-        name="TrackOrder" 
-        component={TrackOrderScreen}
-        options={{ title: 'Track Order' }}
-      />
-      <Stack.Screen 
-        name="OrderSuccess" 
-        component={OrderSuccessScreen}
-        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="Notifications" 
